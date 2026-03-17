@@ -1,0 +1,49 @@
+DEFINITION MODULE Classify;
+(* Audio classification pipeline.
+
+   Connects feature extraction (ShortFeats, MidFeats) with k-NN
+   classification (m2knn). Extracts a fixed-length feature vector
+   per audio file by averaging mid-term feature means, then trains
+   or predicts using the k-NN classifier.
+
+   Feature vector: 34 LONGREALs (mean of each short-term feature
+   across all mid-term windows). *)
+
+FROM SYSTEM IMPORT ADDRESS;
+FROM KNN IMPORT Model;
+
+CONST
+  VectorLen = 34;  (* features per file = NumFeatures from ShortFeats *)
+
+(* ExtractFileVector — extract a single 34-element feature vector
+   from a WAV file. Reads audio, computes short-term features (50ms
+   window, 25ms step), computes mid-term features (1s window, 1s step),
+   averages the mid-term means across all windows.
+   vec must have room for VectorLen LONGREALs.
+   Returns FALSE on read/extraction failure. *)
+PROCEDURE ExtractFileVector(path: ARRAY OF CHAR;
+                            VAR vec: ARRAY OF LONGREAL;
+                            VAR ok: BOOLEAN);
+
+(* TrainFromDirs — train a k-NN model from labeled directories.
+   Each directory contains WAV files belonging to one class.
+   dirs is an array of directory path strings (ARRAY OF CHAR).
+   numDirs is the number of classes (directories).
+   kNeighbors is the k for k-NN.
+   Extracts features from all WAV files, trains model with scaling.
+   Returns FALSE if no valid files found or extraction fails. *)
+PROCEDURE TrainFromDirs(VAR m: Model;
+                        dirs: ADDRESS;   (* array of path ADDRESSes *)
+                        numDirs: CARDINAL;
+                        kNeighbors: CARDINAL;
+                        VAR ok: BOOLEAN);
+
+(* PredictFile — classify a single WAV file using a trained model.
+   Returns the predicted class label (0-based).
+   proba is filled with per-class probabilities (numClasses LONGREALs).
+   Returns -1 on failure. *)
+PROCEDURE PredictFile(VAR m: Model;
+                      path: ARRAY OF CHAR;
+                      VAR proba: ARRAY OF LONGREAL): INTEGER;
+
+END Classify.

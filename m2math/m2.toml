@@ -1,0 +1,18 @@
+# m2.toml - m2math: Extended math utilities for DSP and audio analysis
+#
+# Provides Log10, Log2, Pow, Floor, Ceil, FAbs, FMod, Clamp, Hypot,
+# NextPow2, IsPow2. All floating-point work uses LONGREAL (64-bit).
+# Depends only on MathLib (stdlib).
+manifest_version=1
+name=m2math
+version=0.1.0
+edition=pim4
+entry=src/MathUtil.mod
+includes=src
+
+[deps]
+
+[test]
+entry=tests/math_tests.mod
+
+[cc]

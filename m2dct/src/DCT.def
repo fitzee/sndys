@@ -1,0 +1,25 @@
+DEFINITION MODULE DCT;
+(* Discrete Cosine Transform (DCT-II/III) for MFCC computation.
+   Provides forward DCT-II, partial DCT-II, and inverse DCT-III.
+   All buffers are arrays of LONGREAL passed by ADDRESS. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+(* Forward: compute the full DCT-II of input.
+   input and output are each n LONGREALs.
+   output may NOT alias input.
+   X[k] = sum_{n=0}^{N-1} x[n] * cos(pi/N * (n + 0.5) * k) *)
+PROCEDURE Forward(input: ADDRESS; n: CARDINAL; output: ADDRESS);
+
+(* ForwardPartial: compute only the first numCoeffs DCT-II coefficients.
+   input is n LONGREALs, output is numCoeffs LONGREALs.
+   Used for MFCC extraction: DCT of mel-filterbank keeping fewer coefficients. *)
+PROCEDURE ForwardPartial(input: ADDRESS; n: CARDINAL;
+                         output: ADDRESS; numCoeffs: CARDINAL);
+
+(* Inverse: compute the inverse DCT (DCT-III).
+   input and output are each n LONGREALs.
+   x[n] = (1/N) * X[0]/2 + (1/N) * sum_{k=1}^{N-1} X[k] * cos(pi/N * k * (n + 0.5)) *)
+PROCEDURE Inverse(input: ADDRESS; n: CARDINAL; output: ADDRESS);
+
+END DCT.

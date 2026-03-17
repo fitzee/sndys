@@ -1,0 +1,33 @@
+DEFINITION MODULE SpectralExtra;
+(* Additional spectral features: flatness, bandwidth, slope, contrast.
+
+   All procedures operate on a magnitude spectrum stored as
+   n LONGREALs at the given ADDRESS. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+(* SpectralFlatness -- geometric mean / arithmetic mean of magnitude spectrum.
+   Uses log-domain computation: exp(mean(log(x))) / mean(x).
+   Returns 0.0 for silence. *)
+PROCEDURE SpectralFlatness(mag: ADDRESS; n: CARDINAL): LONGREAL;
+
+(* SpectralBandwidth -- energy-weighted bandwidth around the centroid.
+   sqrt(sum(|freq - centroid|^2 * mag) / sum(mag)).
+   sampleRate is the sampling frequency; centroid is the spectral centroid
+   in Hz (pre-computed). *)
+PROCEDURE SpectralBandwidth(mag: ADDRESS; n: CARDINAL;
+                             sampleRate: CARDINAL;
+                             centroid: LONGREAL): LONGREAL;
+
+(* SpectralSlope -- linear regression slope of the magnitude spectrum.
+   Positive = rising, negative = falling. *)
+PROCEDURE SpectralSlope(mag: ADDRESS; n: CARDINAL): LONGREAL;
+
+(* SpectralContrast -- per-sub-band contrast in dB.
+   For each band: (top 20% mean - bottom 20% mean) in dB.
+   contrast must have at least numBands elements. *)
+PROCEDURE SpectralContrast(mag: ADDRESS; n: CARDINAL;
+                            numBands: CARDINAL;
+                            VAR contrast: ARRAY OF LONGREAL);
+
+END SpectralExtra.

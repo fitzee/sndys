@@ -1,0 +1,17 @@
+DEFINITION MODULE AudioConcat;
+(* Audio concatenation — join multiple WAV files with optional crossfade. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+(* Concat — join two mono signals end-to-end.
+   crossfadeSec: overlap duration for crossfade (0 = hard cut).
+   Allocates output. Caller frees with FreeConcat. *)
+PROCEDURE Concat(sigA: ADDRESS; numA: CARDINAL;
+                 sigB: ADDRESS; numB: CARDINAL;
+                 sampleRate: CARDINAL;
+                 crossfadeSec: LONGREAL;
+                 VAR output: ADDRESS; VAR outSamples: CARDINAL);
+
+PROCEDURE FreeConcat(VAR output: ADDRESS);
+
+END AudioConcat.

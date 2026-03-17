@@ -1,0 +1,78 @@
+DEFINITION MODULE SVM;
+(* Support Vector Machine classifier — pure Modula-2.
+
+   Binary SVM with linear or RBF kernel using simplified SMO
+   (Sequential Minimal Optimization).  Multi-class classification
+   via one-vs-rest strategy.
+
+   Data layout: row-major, numSamples rows x numFeatures columns.
+   Labels for binary SVM are +1.0 or -1.0 (LONGREAL).
+   Labels for multi-class are INTEGER 0..numClasses-1. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+CONST
+  MaxClasses = 32;
+
+TYPE
+  KernelType = (Linear, RBF);
+
+  SVMModel = RECORD
+    alphas:      ADDRESS;     (* numTrain LONGREALs — Lagrange multipliers *)
+    trainData:   ADDRESS;     (* numTrain x numFeatures LONGREALs *)
+    trainLabels: ADDRESS;     (* numTrain LONGREALs — +1/-1 *)
+    bias:        LONGREAL;
+    numTrain:    CARDINAL;
+    numFeatures: CARDINAL;
+    C:           LONGREAL;    (* regularization parameter *)
+    kernel:      KernelType;
+    gamma:       LONGREAL;    (* RBF gamma *)
+    trained:     BOOLEAN;
+  END;
+
+  MultiSVM = RECORD
+    models:      ARRAY [0..31] OF SVMModel;  (* one-vs-rest *)
+    numClasses:  CARDINAL;
+    numFeatures: CARDINAL;
+  END;
+
+(* Init — initialize a binary SVM model with parameters. *)
+PROCEDURE Init(VAR m: SVMModel; nFeatures: CARDINAL;
+               C: LONGREAL; kern: KernelType; gamma: LONGREAL);
+
+(* Train — train binary SVM on data with +1/-1 labels using simplified SMO.
+   data is numSamples x numFeatures LONGREALs (row-major).
+   labels is numSamples LONGREALs (+1.0 or -1.0). *)
+PROCEDURE Train(VAR m: SVMModel; data: ADDRESS; labels: ADDRESS;
+                numSamples, numFeatures: CARDINAL);
+
+(* Predict — classify a single feature vector.
+   sample is numFeatures LONGREALs. Returns decision value (sign = class). *)
+PROCEDURE Predict(VAR m: SVMModel; sample: ADDRESS): LONGREAL;
+
+(* Free — deallocate internal buffers. *)
+PROCEDURE Free(VAR m: SVMModel);
+
+(* InitMulti — initialize multi-class one-vs-rest SVM. *)
+PROCEDURE InitMulti(VAR m: MultiSVM; nClasses, nFeatures: CARDINAL;
+                    C: LONGREAL; kern: KernelType; gamma: LONGREAL);
+
+(* TrainMulti — train one binary SVM per class.
+   data is numSamples x numFeatures LONGREALs (row-major).
+   labels is numSamples INTEGERs (0-based class indices). *)
+PROCEDURE TrainMulti(VAR m: MultiSVM; data: ADDRESS; labels: ADDRESS;
+                     numSamples, numFeatures: CARDINAL);
+
+(* PredictMulti — classify a single sample, returns class index. *)
+PROCEDURE PredictMulti(VAR m: MultiSVM; sample: ADDRESS): INTEGER;
+
+(* PredictMultiProba — classify and return per-class decision scores.
+   scores is filled with numClasses LONGREALs.
+   Returns the predicted class index. *)
+PROCEDURE PredictMultiProba(VAR m: MultiSVM; sample: ADDRESS;
+                            VAR scores: ARRAY OF LONGREAL): INTEGER;
+
+(* FreeMulti — deallocate all binary models. *)
+PROCEDURE FreeMulti(VAR m: MultiSVM);
+
+END SVM.

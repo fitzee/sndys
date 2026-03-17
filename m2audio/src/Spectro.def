@@ -1,0 +1,35 @@
+DEFINITION MODULE Spectro;
+(* Spectrogram and chromagram computation.
+
+   Produces time-frequency and time-chroma representations
+   as flat matrices suitable for CSV output or further analysis. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+(* ComputeSpectrogram — compute magnitude spectrogram.
+   signal is numSamples LONGREALs (mono).
+   Uses radix-2 FFT with zero-padding.
+   Output is numFrames x numBins LONGREALs (row-major).
+   numBins = fftSize / 2. numFrames is computed from window/step.
+   Caller must free output with FreeSpectro. *)
+PROCEDURE ComputeSpectrogram(signal: ADDRESS;
+                              numSamples, sampleRate: CARDINAL;
+                              winSizeSec, winStepSec: LONGREAL;
+                              VAR output: ADDRESS;
+                              VAR numFrames, numBins: CARDINAL);
+
+(* ComputeChromagram — compute chroma representation.
+   signal is numSamples LONGREALs (mono).
+   Output is numFrames x 12 LONGREALs (one row per frame,
+   12 columns for pitch classes A through G#).
+   Caller must free output with FreeSpectro. *)
+PROCEDURE ComputeChromagram(signal: ADDRESS;
+                             numSamples, sampleRate: CARDINAL;
+                             winSizeSec, winStepSec: LONGREAL;
+                             VAR output: ADDRESS;
+                             VAR numFrames: CARDINAL);
+
+(* FreeSpectro — deallocate spectrogram or chromagram matrix. *)
+PROCEDURE FreeSpectro(VAR output: ADDRESS);
+
+END Spectro.

@@ -1,0 +1,34 @@
+DEFINITION MODULE KMeans;
+
+FROM SYSTEM IMPORT ADDRESS;
+
+TYPE
+  KMeansResult = RECORD
+    centroids: ADDRESS;
+    labels: ADDRESS;
+    numClusters: CARDINAL;
+    numFeatures: CARDINAL;
+    numSamples: CARDINAL;
+    iterations: CARDINAL;
+    converged: BOOLEAN
+  END;
+
+PROCEDURE Init(VAR r: KMeansResult; k, nFeatures: CARDINAL);
+
+PROCEDURE Fit(VAR r: KMeansResult;
+              data: ADDRESS;
+              numSamples, numFeatures, numClusters, maxIter: CARDINAL;
+              tolerance: LONGREAL);
+
+PROCEDURE Predict(VAR r: KMeansResult; sample: ADDRESS): INTEGER;
+
+PROCEDURE PredictBatch(VAR r: KMeansResult;
+                       data: ADDRESS;
+                       numSamples: CARDINAL;
+                       labels: ADDRESS);
+
+PROCEDURE Silhouette(VAR r: KMeansResult; data: ADDRESS): LONGREAL;
+
+PROCEDURE FreeResult(VAR r: KMeansResult);
+
+END KMeans.

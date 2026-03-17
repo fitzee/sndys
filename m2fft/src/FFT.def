@@ -1,0 +1,41 @@
+DEFINITION MODULE FFT;
+(* Radix-2 Cooley-Tukey FFT for audio and DSP work.
+
+   All routines operate on flat LONGREAL arrays.  Complex data is stored
+   in interleaved format: [re0, im0, re1, im1, ...].  An N-point FFT
+   therefore uses an array of 2*N LONGREALs.
+
+   n must always be a power of 2. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+(* In-place forward FFT (decimation-in-time).
+   data points to 2*n LONGREALs in interleaved complex format. *)
+PROCEDURE Forward(data: ADDRESS; n: CARDINAL);
+
+(* In-place inverse FFT.
+   Conjugates, applies Forward, conjugates again, scales by 1/n. *)
+PROCEDURE Inverse(data: ADDRESS; n: CARDINAL);
+
+(* Compute magnitude spectrum.
+   data is 2*n LONGREALs (interleaved complex).
+   mag receives n LONGREALs: mag[i] = sqrt(re[i]^2 + im[i]^2). *)
+PROCEDURE Magnitude(data: ADDRESS; n: CARDINAL; mag: ADDRESS);
+
+(* Compute power spectrum.
+   power receives n LONGREALs: power[i] = re[i]^2 + im[i]^2. *)
+PROCEDURE PowerSpectrum(data: ADDRESS; n: CARDINAL;
+                        power: ADDRESS);
+
+(* Compute power spectrum normalized by n.
+   Each bin is divided by n for spectral analysis. *)
+PROCEDURE NormalizedPowerSpectrum(data: ADDRESS; n: CARDINAL;
+                                  power: ADDRESS);
+
+(* Pack a real signal into interleaved complex format.
+   realIn is n LONGREALs, complexOut is 2*n LONGREALs.
+   Imaginary parts are set to zero. *)
+PROCEDURE RealToComplex(realIn: ADDRESS; n: CARDINAL;
+                        complexOut: ADDRESS);
+
+END FFT.

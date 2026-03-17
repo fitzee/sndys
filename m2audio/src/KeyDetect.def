@@ -1,0 +1,19 @@
+DEFINITION MODULE KeyDetect;
+(* Musical key detection from chroma features.
+
+   Computes the Krumhansl-Schmuckler key profiles against the
+   averaged chroma vector to determine the most likely key.
+   Returns both the key name and a confidence score. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+(* DetectKey — determine the musical key of an audio signal.
+   signal is numSamples LONGREALs (mono).
+   keyName is filled with the detected key (e.g., "C major", "A minor").
+   confidence is 0..1 (correlation with best-matching profile).
+   Uses short-term chroma features averaged across the file. *)
+PROCEDURE DetectKey(signal: ADDRESS; numSamples, sampleRate: CARDINAL;
+                    VAR keyName: ARRAY OF CHAR;
+                    VAR confidence: LONGREAL);
+
+END KeyDetect.

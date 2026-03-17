@@ -1,0 +1,23 @@
+DEFINITION MODULE Onset;
+(* Onset detection — find note/beat attack points.
+
+   Uses spectral flux peak detection to identify transients.
+   Returns onset times in seconds. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+CONST
+  MaxOnsets = 4096;
+
+(* DetectOnsets — find onset positions in an audio signal.
+   signal is numSamples LONGREALs (mono).
+   sensitivity: multiplier for the detection threshold (typical 1.5).
+     Lower = more onsets detected, higher = fewer.
+   onsets is filled with onset times in seconds.
+   numOnsets returns the count. *)
+PROCEDURE DetectOnsets(signal: ADDRESS; numSamples, sampleRate: CARDINAL;
+                       sensitivity: LONGREAL;
+                       VAR onsets: ARRAY OF LONGREAL;
+                       VAR numOnsets: CARDINAL);
+
+END Onset.

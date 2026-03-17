@@ -1,0 +1,55 @@
+DEFINITION MODULE ShortFeats;
+(* Short-term audio feature extraction -- the core of pyAudioAnalysis.
+   Extracts 34 features per frame from an audio signal. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+CONST
+  NumFeatures = 34;
+  NumMfcc     = 13;
+  NumChroma   = 12;
+
+TYPE
+  FrameResult = RECORD
+    features: ARRAY [0..33] OF LONGREAL
+  END;
+
+(* Extract -- extract all 34 short-term features from the signal.
+   featureMatrix is allocated: numFrames * NumFeatures LONGREALs, row-major.
+   Row i = frame i, columns = features 0..33.
+
+   Feature indices (matching pyAudioAnalysis order):
+     0:  Zero Crossing Rate
+     1:  Energy
+     2:  Energy Entropy
+     3:  Spectral Centroid
+     4:  Spectral Spread
+     5:  Spectral Entropy
+     6:  Spectral Flux
+     7:  Spectral Rolloff
+     8-20:  MFCC 1-13
+     21-32: Chroma 1-12
+     33: Chroma Std Dev
+
+   Caller must free featureMatrix with FreeFeatures when done. *)
+PROCEDURE Extract(signal: ADDRESS; numSamples, sampleRate: CARDINAL;
+                  winSizeSec, winStepSec: LONGREAL;
+                  VAR featureMatrix: ADDRESS; VAR numFrames: CARDINAL;
+                  VAR ok: BOOLEAN);
+
+(* ExtractFast -- same as Extract but uses radix-2 FFT (O(N log N) per frame).
+   Much faster on long files. Features are highly correlated with Extract
+   but not bit-identical due to FFT zero-padding to power-of-2. *)
+PROCEDURE ExtractFast(signal: ADDRESS; numSamples, sampleRate: CARDINAL;
+                      winSizeSec, winStepSec: LONGREAL;
+                      VAR featureMatrix: ADDRESS; VAR numFrames: CARDINAL;
+                      VAR ok: BOOLEAN);
+
+(* FreeFeatures -- deallocate the feature matrix from Extract. *)
+PROCEDURE FreeFeatures(VAR featureMatrix: ADDRESS);
+
+(* FeatureName -- get the human-readable name of feature at index idx.
+   Writes name into the provided buffer. *)
+PROCEDURE FeatureName(idx: CARDINAL; VAR name: ARRAY OF CHAR);
+
+END ShortFeats.

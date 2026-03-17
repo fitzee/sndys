@@ -1,0 +1,82 @@
+DEFINITION MODULE HMM;
+(* Gaussian Hidden Markov Model with diagonal covariance.
+
+   Supports:
+   - Training from labeled observation sequences (supervised)
+   - Viterbi decoding (find most likely state sequence)
+   - Sequence smoothing (re-label a sequence via Viterbi)
+
+   All computation in log-space to avoid numerical underflow.
+
+   Data layout:
+   - Observations: numFrames x numFeatures LONGREALs, row-major
+   - Labels/states: numFrames INTEGERs (0-based state indices)
+
+   Memory: the model allocates internal arrays on Init and frees
+   them on Free. Observation data is NOT copied — caller must keep
+   it alive during Decode calls. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+CONST
+  MaxStates   = 32;   (* maximum number of HMM states *)
+  MaxFeatures = 128;  (* maximum observation dimensionality *)
+
+TYPE
+  GaussHMM = RECORD
+    numStates:   CARDINAL;
+    numFeatures: CARDINAL;
+
+    (* Log initial state probabilities: logPi[s] *)
+    logPi: ARRAY [0..31] OF LONGREAL;
+
+    (* Log transition matrix: logA[from][to] *)
+    logA: ARRAY [0..31] OF ARRAY [0..31] OF LONGREAL;
+
+    (* Per-state Gaussian parameters (diagonal covariance):
+       means[s][f] and vars[s][f] *)
+    means: ARRAY [0..31] OF ARRAY [0..127] OF LONGREAL;
+    vars:  ARRAY [0..31] OF ARRAY [0..127] OF LONGREAL;
+
+    trained: BOOLEAN;
+  END;
+
+(* Init — initialize an HMM with the given number of states and features.
+   Sets uniform priors and transitions. *)
+PROCEDURE Init(VAR h: GaussHMM; nStates, nFeatures: CARDINAL);
+
+(* Free — release any internal resources. *)
+PROCEDURE Free(VAR h: GaussHMM);
+
+(* TrainSupervised — estimate HMM parameters from labeled observations.
+   obs is numFrames x numFeatures LONGREALs (row-major).
+   labels is numFrames INTEGERs (state indices 0..nStates-1).
+   Computes: initial priors, transition matrix, per-state means and variances. *)
+PROCEDURE TrainSupervised(VAR h: GaussHMM;
+                          obs: ADDRESS; labels: ADDRESS;
+                          numFrames: CARDINAL);
+
+(* Decode — Viterbi decoding: find the most likely state sequence.
+   obs is numFrames x numFeatures LONGREALs.
+   path is filled with numFrames INTEGERs (predicted state per frame).
+   Returns the log-likelihood of the best path. *)
+PROCEDURE Decode(VAR h: GaussHMM;
+                 obs: ADDRESS; numFrames: CARDINAL;
+                 path: ADDRESS): LONGREAL;
+
+(* Smooth — re-label a sequence by running Viterbi on the observations.
+   Equivalent to Decode but provided as a convenience.
+   obs is numFrames x numFeatures LONGREALs.
+   smoothed is filled with numFrames INTEGERs. *)
+PROCEDURE Smooth(VAR h: GaussHMM;
+                 obs: ADDRESS; numFrames: CARDINAL;
+                 smoothed: ADDRESS);
+
+(* LogLikelihood — compute log-probability of observations under the model
+   using the forward algorithm.
+   obs is numFrames x numFeatures LONGREALs.
+   Returns the total log-likelihood. *)
+PROCEDURE LogLikelihood(VAR h: GaussHMM;
+                        obs: ADDRESS; numFrames: CARDINAL): LONGREAL;
+
+END HMM.

@@ -1,0 +1,39 @@
+DEFINITION MODULE DTree;
+
+FROM SYSTEM IMPORT ADDRESS;
+
+TYPE
+  TreeNode = RECORD
+    featureIdx: INTEGER;
+    threshold: LONGREAL;
+    leftChild: INTEGER;
+    rightChild: INTEGER;
+    classLabel: INTEGER;
+    numSamples: CARDINAL
+  END;
+
+  Tree = RECORD
+    nodes: ADDRESS;
+    numNodes: CARDINAL;
+    maxNodes: CARDINAL;
+    numFeatures: CARDINAL;
+    numClasses: CARDINAL;
+    maxDepth: CARDINAL
+  END;
+
+PROCEDURE Init(VAR t: Tree; nFeatures, nClasses, maxDepth: CARDINAL);
+PROCEDURE Train(VAR t: Tree; data: ADDRESS; labels: ADDRESS;
+                numSamples, numFeatures: CARDINAL);
+PROCEDURE Predict(VAR t: Tree; sample: ADDRESS): INTEGER;
+PROCEDURE PredictBatch(VAR t: Tree; data: ADDRESS; numSamples: CARDINAL;
+                       predictions: ADDRESS);
+PROCEDURE Free(VAR t: Tree);
+
+(* Internal helpers exported for Forest/GBoost use *)
+PROCEDURE TrainSubset(VAR t: Tree; data: ADDRESS; labels: ADDRESS;
+                      numSamples, numFeatures: CARDINAL;
+                      sampleIndices: ADDRESS; numSubSamples: CARDINAL;
+                      featureMask: ADDRESS; numMaskFeatures: CARDINAL;
+                      useRandomThresholds: BOOLEAN; seed: CARDINAL);
+
+END DTree.

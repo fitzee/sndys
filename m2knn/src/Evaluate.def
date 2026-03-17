@@ -1,0 +1,49 @@
+DEFINITION MODULE Evaluate;
+(* Classification evaluation — confusion matrix, accuracy, F1 score,
+   and k-fold cross-validation.
+
+   All metrics operate on integer label arrays (predicted vs actual). *)
+
+FROM SYSTEM IMPORT ADDRESS;
+FROM KNN IMPORT Model;
+
+CONST
+  MaxClasses = 32;
+
+TYPE
+  ConfMatrix = RECORD
+    numClasses: CARDINAL;
+    cells: ARRAY [0..31] OF ARRAY [0..31] OF CARDINAL;
+    (* cells[actual][predicted] *)
+  END;
+
+  ClassMetrics = RECORD
+    accuracy:  LONGREAL;
+    precision: ARRAY [0..31] OF LONGREAL;  (* per-class *)
+    recall:    ARRAY [0..31] OF LONGREAL;  (* per-class *)
+    f1:        ARRAY [0..31] OF LONGREAL;  (* per-class *)
+    macroF1:   LONGREAL;                   (* macro-averaged F1 *)
+  END;
+
+(* ComputeConfusion — build confusion matrix from actual and predicted labels.
+   actual and predicted are numSamples INTEGERs. *)
+PROCEDURE ComputeConfusion(actual, predicted: ADDRESS;
+                           numSamples, numClasses: CARDINAL;
+                           VAR cm: ConfMatrix);
+
+(* ComputeMetrics — compute accuracy, precision, recall, F1 from confusion matrix. *)
+PROCEDURE ComputeMetrics(VAR cm: ConfMatrix; VAR met: ClassMetrics);
+
+(* CrossValidate — k-fold cross-validation on the given dataset.
+   data is numSamples x numFeatures LONGREALs (row-major).
+   labels is numSamples INTEGERs.
+   nFolds is the number of folds (e.g. 5 or 10).
+   kNeighbors is the k for the KNN classifier.
+   Fills met with macro-averaged metrics across folds.
+   Returns overall accuracy. *)
+PROCEDURE CrossValidate(data: ADDRESS; labels: ADDRESS;
+                        numSamples, numFeatures, numClasses: CARDINAL;
+                        nFolds, kNeighbors: CARDINAL;
+                        VAR met: ClassMetrics): LONGREAL;
+
+END Evaluate.

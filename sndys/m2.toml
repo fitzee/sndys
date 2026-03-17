@@ -1,0 +1,27 @@
+# m2.toml - sndys: Unified audio analysis CLI
+#
+# 40 commands across 7 categories: Info, Analysis, Classification,
+# Processing, Generation, Music Intelligence, Utilities.
+manifest_version=1
+name=sndys
+version=0.1.0
+edition=pim4
+entry=src/Main.mod
+includes=src
+
+[deps]
+m2wav=path:../m2wav
+m2math=path:../m2math
+m2fft=path:../m2fft
+m2dct=path:../m2dct
+m2stats=path:../m2stats
+m2audio=path:../m2audio
+m2knn=path:../m2knn
+m2hmm=path:../m2hmm
+m2kmeans=path:../m2kmeans
+m2pca=path:../m2pca
+m2tree=path:../m2tree
+m2svm=path:../m2svm
+m2sys
+
+[cc]

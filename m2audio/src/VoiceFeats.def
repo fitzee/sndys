@@ -1,0 +1,33 @@
+DEFINITION MODULE VoiceFeats;
+(* Voice and speech analysis features: formants, jitter, shimmer, HNR. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+(* ComputeFormants -- estimate first 3 formant frequencies via LPC.
+   frame is frameLen LONGREALs. Uses autocorrelation method with
+   Levinson-Durbin recursion at order 12, then finds peaks in
+   the LPC spectral envelope. *)
+PROCEDURE ComputeFormants(frame: ADDRESS;
+                           frameLen, sampleRate: CARDINAL;
+                           VAR f1, f2, f3: LONGREAL);
+
+(* ComputeJitter -- relative jitter from a pitch contour.
+   pitches is numFrames LONGREALs of F0 values (0 = unvoiced, skipped).
+   Returns mean |period[i+1] - period[i]| / mean(period). *)
+PROCEDURE ComputeJitter(pitches: ADDRESS;
+                         numFrames: CARDINAL): LONGREAL;
+
+(* ComputeShimmer -- relative shimmer from signal and pitch contour.
+   signal is numSamples LONGREALs; pitches is numFrames LONGREALs of F0.
+   Returns mean |amp[i+1] - amp[i]| / mean(amp). *)
+PROCEDURE ComputeShimmer(signal: ADDRESS;
+                          numSamples, sampleRate: CARDINAL;
+                          pitches: ADDRESS;
+                          numFrames: CARDINAL): LONGREAL;
+
+(* ComputeHNR -- Harmonics-to-Noise Ratio in dB.
+   Uses autocorrelation: HNR = 10*log10(r_peak / (r_0 - r_peak)). *)
+PROCEDURE ComputeHNR(signal: ADDRESS;
+                      numSamples, sampleRate: CARDINAL): LONGREAL;
+
+END VoiceFeats.

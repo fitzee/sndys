@@ -1,0 +1,19 @@
+DEFINITION MODULE Filter;
+(* FFT-based frequency domain filtering.
+   Lowpass, highpass, bandpass via spectral zeroing. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+(* Lowpass — remove frequencies above cutoffHz. In-place. *)
+PROCEDURE Lowpass(signal: ADDRESS; numSamples, sampleRate: CARDINAL;
+                  cutoffHz: LONGREAL);
+
+(* Highpass — remove frequencies below cutoffHz. In-place. *)
+PROCEDURE Highpass(signal: ADDRESS; numSamples, sampleRate: CARDINAL;
+                   cutoffHz: LONGREAL);
+
+(* Bandpass — keep only frequencies between loHz and hiHz. In-place. *)
+PROCEDURE Bandpass(signal: ADDRESS; numSamples, sampleRate: CARDINAL;
+                   loHz, hiHz: LONGREAL);
+
+END Filter.

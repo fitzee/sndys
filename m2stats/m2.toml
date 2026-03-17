@@ -1,0 +1,14 @@
+# m2.toml - m2stats: Statistical functions for signal analysis
+manifest_version=1
+name=m2stats
+version=0.1.0
+edition=pim4
+entry=src/Stats.mod
+includes=src
+
+[deps]
+
+[test]
+entry=tests/stats_tests.mod
+
+[cc]

@@ -1,0 +1,32 @@
+DEFINITION MODULE PCA;
+
+FROM SYSTEM IMPORT ADDRESS;
+
+TYPE
+  PCAState = RECORD
+    numComponents: CARDINAL;
+    numFeatures: CARDINAL;
+    components: ADDRESS;
+    mean: ADDRESS;
+    fitted: BOOLEAN
+  END;
+
+PROCEDURE Init(VAR p: PCAState; nComponents, nFeatures: CARDINAL);
+
+PROCEDURE Fit(VAR p: PCAState;
+              data: ADDRESS;
+              numSamples, numFeatures: CARDINAL);
+
+PROCEDURE Transform(VAR p: PCAState;
+                    data: ADDRESS;
+                    numSamples: CARDINAL;
+                    output: ADDRESS);
+
+PROCEDURE FitTransform(VAR p: PCAState;
+                       data: ADDRESS;
+                       numSamples, numFeatures: CARDINAL;
+                       output: ADDRESS);
+
+PROCEDURE Free(VAR p: PCAState);
+
+END PCA.

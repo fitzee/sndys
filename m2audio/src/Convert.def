@@ -1,0 +1,25 @@
+DEFINITION MODULE Convert;
+(* Audio format conversion via ffmpeg.
+
+   Converts MP3, OGG, FLAC, AAC, AIFF, and any other ffmpeg-supported
+   format to WAV for processing. Requires ffmpeg installed on the system.
+
+   Also provides AIFF reading in pure M2 (no ffmpeg needed). *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+(* ConvertToWav — convert any audio file to 16-bit mono WAV using ffmpeg.
+   Creates a temporary WAV file at outPath.
+   Returns FALSE if ffmpeg is not installed or conversion fails. *)
+PROCEDURE ConvertToWav(inPath: ARRAY OF CHAR;
+                       outPath: ARRAY OF CHAR;
+                       sampleRate: CARDINAL;
+                       VAR ok: BOOLEAN);
+
+(* IsWavFile — check if a filename ends with .wav (case insensitive). *)
+PROCEDURE IsWavFile(path: ARRAY OF CHAR): BOOLEAN;
+
+(* NeedsConversion — TRUE if the file is not WAV and needs ffmpeg. *)
+PROCEDURE NeedsConversion(path: ARRAY OF CHAR): BOOLEAN;
+
+END Convert.

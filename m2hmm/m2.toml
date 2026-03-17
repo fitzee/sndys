@@ -1,0 +1,18 @@
+# m2.toml - m2hmm: Gaussian Hidden Markov Model
+#
+# Pure Modula-2 implementation of a continuous-observation HMM
+# with diagonal Gaussian emissions. Supports Viterbi decoding,
+# parameter estimation from labeled data, and sequence smoothing.
+manifest_version=1
+name=m2hmm
+version=0.1.0
+edition=pim4
+entry=src/HMM.mod
+includes=src
+
+[deps]
+
+[test]
+entry=tests/hmm_tests.mod
+
+[cc]

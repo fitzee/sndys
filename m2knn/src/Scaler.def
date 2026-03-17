@@ -1,0 +1,49 @@
+DEFINITION MODULE Scaler;
+(* StandardScaler — per-feature z-score normalization.
+
+   Fits mean and standard deviation from training data, then
+   transforms feature matrices so each column has zero mean
+   and unit variance. Essential for distance-based classifiers
+   like k-NN where feature scales must be comparable.
+
+   Data layout: row-major, numSamples rows x numFeatures columns.
+   Element [i, j] is at index i * numFeatures + j. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+CONST
+  MaxFeatures = 128;  (* maximum number of features supported *)
+
+TYPE
+  ScalerState = RECORD
+    numFeatures: CARDINAL;
+    means: ARRAY [0..127] OF LONGREAL;
+    stds:  ARRAY [0..127] OF LONGREAL;
+    fitted: BOOLEAN;
+  END;
+
+(* Init — initialize a scaler for the given number of features. *)
+PROCEDURE Init(VAR sc: ScalerState; nFeatures: CARDINAL);
+
+(* Fit — compute mean and std from training data.
+   data is numSamples x numFeatures LONGREALs, row-major. *)
+PROCEDURE Fit(VAR sc: ScalerState;
+              data: ADDRESS; numSamples, numFeatures: CARDINAL);
+
+(* Transform — apply z-score normalization in-place.
+   Each feature column: x[i,j] = (x[i,j] - mean[j]) / std[j].
+   Scaler must be fitted first. *)
+PROCEDURE Transform(VAR sc: ScalerState;
+                    data: ADDRESS; numSamples, numFeatures: CARDINAL);
+
+(* FitTransform — fit on data then transform it in-place. *)
+PROCEDURE FitTransform(VAR sc: ScalerState;
+                       data: ADDRESS; numSamples, numFeatures: CARDINAL);
+
+(* InverseTransform — reverse the scaling in-place.
+   x[i,j] = x[i,j] * std[j] + mean[j]. *)
+PROCEDURE InverseTransform(VAR sc: ScalerState;
+                           data: ADDRESS;
+                           numSamples, numFeatures: CARDINAL);
+
+END Scaler.

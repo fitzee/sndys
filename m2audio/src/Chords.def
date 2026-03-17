@@ -1,0 +1,34 @@
+DEFINITION MODULE Chords;
+(* Chord detection from chroma vectors.
+   Matches against major, minor, 7th, and minor 7th templates
+   (12 roots x 4 types = 48 templates) using cosine similarity. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+TYPE
+  ChordResult = RECORD
+    name: ARRAY [0..15] OF CHAR;
+    confidence: LONGREAL;
+    root: CARDINAL
+  END;
+
+(* DetectChord -- match a 12-element chroma vector against chord templates.
+   Sets result.name (e.g., "C", "Am", "G7", "Dm7"), result.confidence,
+   and result.root (0..11). *)
+PROCEDURE DetectChord(chroma: ARRAY OF LONGREAL;
+                       VAR result: ChordResult);
+
+(* DetectChordSequence -- detect chords across a chromagram.
+   chromagram is numFrames x 12 LONGREALs (row-major).
+   Merges consecutive identical chords into segments.
+   Allocates an array of ChordResult records in chords.
+   Caller frees with FreeChords. *)
+PROCEDURE DetectChordSequence(chromagram: ADDRESS;
+                               numFrames: CARDINAL;
+                               VAR chords: ADDRESS;
+                               VAR numChords: CARDINAL);
+
+(* FreeChords -- deallocate chord result array. *)
+PROCEDURE FreeChords(VAR chords: ADDRESS);
+
+END Chords.

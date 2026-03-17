@@ -1,0 +1,29 @@
+DEFINITION MODULE SMOTE;
+(* Synthetic Minority Over-sampling Technique.
+
+   Generates synthetic samples for underrepresented classes by
+   interpolating between existing minority samples and their
+   nearest neighbors. Balances class distributions for better
+   classifier performance on imbalanced datasets.
+
+   Data layout: row-major, numSamples x numFeatures LONGREALs. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+(* Oversample — balance classes by generating synthetic samples.
+   data is numSamples x numFeatures LONGREALs (row-major).
+   labels is numSamples INTEGERs (0-based class indices).
+   numClasses is the number of distinct classes.
+   Allocates newData and newLabels with the balanced dataset.
+   newNumSamples returns the total number of samples after oversampling.
+   Each minority class is oversampled to match the majority class count.
+   Caller must free newData and newLabels with FreeOversampled. *)
+PROCEDURE Oversample(data: ADDRESS; labels: ADDRESS;
+                     numSamples, numFeatures, numClasses: CARDINAL;
+                     VAR newData: ADDRESS; VAR newLabels: ADDRESS;
+                     VAR newNumSamples: CARDINAL);
+
+(* FreeOversampled — deallocate arrays from Oversample. *)
+PROCEDURE FreeOversampled(VAR data: ADDRESS; VAR labels: ADDRESS);
+
+END SMOTE.

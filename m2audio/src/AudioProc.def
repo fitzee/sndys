@@ -1,0 +1,75 @@
+DEFINITION MODULE AudioProc;
+(* Audio processing utilities — trim, mix, normalize, fade, reverse, generate.
+   All operate on mono LONGREAL sample arrays. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+(* Trim — extract a time region from a signal.
+   Allocates output with (endSec - startSec) * sampleRate samples.
+   Caller must free output with FreeProc. *)
+PROCEDURE Trim(signal: ADDRESS; numSamples, sampleRate: CARDINAL;
+               startSec, endSec: LONGREAL;
+               VAR output: ADDRESS; VAR outSamples: CARDINAL);
+
+(* Mix — mix two mono signals together.
+   If lengths differ, the shorter one is zero-padded.
+   mixRatio: 0.0 = only signal A, 1.0 = only signal B, 0.5 = equal mix.
+   Allocates output. Caller must free with FreeProc. *)
+PROCEDURE Mix(signalA: ADDRESS; numA: CARDINAL;
+              signalB: ADDRESS; numB: CARDINAL;
+              mixRatio: LONGREAL;
+              VAR output: ADDRESS; VAR outSamples: CARDINAL);
+
+(* Normalize — peak normalization in-place.
+   Scales signal so the maximum absolute value equals targetPeak.
+   Typical targetPeak = 1.0 or 0.95. *)
+PROCEDURE Normalize(signal: ADDRESS; numSamples: CARDINAL;
+                    targetPeak: LONGREAL);
+
+(* NormalizeRMS — RMS normalization in-place.
+   Scales signal so the RMS level equals targetRMS.
+   Typical targetRMS = 0.1 *)
+PROCEDURE NormalizeRMS(signal: ADDRESS; numSamples: CARDINAL;
+                       targetRMS: LONGREAL);
+
+(* FadeIn — apply linear fade-in in-place.
+   fadeSec: duration of fade in seconds. *)
+PROCEDURE FadeIn(signal: ADDRESS; numSamples, sampleRate: CARDINAL;
+                 fadeSec: LONGREAL);
+
+(* FadeOut — apply linear fade-out in-place.
+   fadeSec: duration of fade in seconds. *)
+PROCEDURE FadeOut(signal: ADDRESS; numSamples, sampleRate: CARDINAL;
+                  fadeSec: LONGREAL);
+
+(* Reverse — reverse signal in-place. *)
+PROCEDURE Reverse(signal: ADDRESS; numSamples: CARDINAL);
+
+(* GenerateSine — generate a sine wave.
+   Allocates output. Caller must free with FreeProc. *)
+PROCEDURE GenerateSine(freq: LONGREAL; durationSec: LONGREAL;
+                       sampleRate: CARDINAL; amplitude: LONGREAL;
+                       VAR output: ADDRESS; VAR outSamples: CARDINAL);
+
+(* GenerateChirp — generate a frequency sweep (linear chirp).
+   Sweeps from startFreq to endFreq over durationSec. *)
+PROCEDURE GenerateChirp(startFreq, endFreq, durationSec: LONGREAL;
+                        sampleRate: CARDINAL; amplitude: LONGREAL;
+                        VAR output: ADDRESS; VAR outSamples: CARDINAL);
+
+(* GenerateNoise — generate white noise using LCG PRNG.
+   Values uniformly distributed in [-amplitude, amplitude]. *)
+PROCEDURE GenerateNoise(durationSec: LONGREAL;
+                        sampleRate: CARDINAL; amplitude: LONGREAL;
+                        VAR output: ADDRESS; VAR outSamples: CARDINAL);
+
+(* GenerateClick — generate a click track at the given BPM.
+   Each click is a short impulse. *)
+PROCEDURE GenerateClick(bpm, durationSec: LONGREAL;
+                        sampleRate: CARDINAL;
+                        VAR output: ADDRESS; VAR outSamples: CARDINAL);
+
+(* FreeProc — deallocate output from processing functions. *)
+PROCEDURE FreeProc(VAR output: ADDRESS);
+
+END AudioProc.

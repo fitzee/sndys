@@ -1,0 +1,32 @@
+DEFINITION MODULE Beat;
+(* Beat extraction — estimate BPM from short-term audio features.
+
+   Uses the pyAudioAnalysis approach: detect peaks in multiple feature
+   trajectories, build a histogram of inter-peak intervals, and
+   find the dominant tempo.
+
+   Input: short-term feature matrix from ShortFeats.Extract.
+   Output: estimated BPM and confidence ratio. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+(* BeatExtract — estimate beats per minute from short-term features.
+   featureMatrix is numFrames x numFeatures LONGREALs (row-major),
+   as returned by ShortFeats.Extract.
+   winStepSec is the short-term step size in seconds (e.g., 0.025).
+
+   Returns estimated BPM in the bpm parameter.
+   Returns a confidence ratio (0..1) in the ratio parameter —
+   higher means more consistent peak spacing.
+
+   Typical usage:
+     Extract(signal, n, sr, 0.050, 0.025, feats, nFrames, ok);
+     BeatExtract(feats, nFrames, 34, 0.025, bpm, ratio);
+*)
+PROCEDURE BeatExtract(featureMatrix: ADDRESS;
+                      numFrames, numFeatures: CARDINAL;
+                      winStepSec: LONGREAL;
+                      VAR bpm: LONGREAL;
+                      VAR ratio: LONGREAL);
+
+END Beat.

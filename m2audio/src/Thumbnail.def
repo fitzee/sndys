@@ -1,0 +1,22 @@
+DEFINITION MODULE Thumbnail;
+(* Music thumbnailing — find the most representative segment.
+
+   Builds a self-similarity matrix from mid-term features,
+   applies diagonal convolution, and finds the segment pair
+   with highest similarity. The thumbnail is the segment that
+   best represents the overall structure of the piece. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+(* FindThumbnail — find the most representative segment.
+   featureMatrix is numFrames x numFeatures LONGREALs (row-major).
+   thumbDurationFrames is the desired thumbnail length in frames.
+   Returns the start frame index of the best thumbnail region.
+   Also returns the similarity score (higher = more representative). *)
+PROCEDURE FindThumbnail(featureMatrix: ADDRESS;
+                         numFrames, numFeatures: CARDINAL;
+                         thumbDurationFrames: CARDINAL;
+                         VAR startFrame: CARDINAL;
+                         VAR score: LONGREAL);
+
+END Thumbnail.

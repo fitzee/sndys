@@ -1,0 +1,30 @@
+DEFINITION MODULE Delta;
+(* Delta features — first-order differences of feature trajectories.
+
+   Computes frame-to-frame differences for each feature, doubling
+   the feature count from 34 to 68. Matches pyAudioAnalysis delta
+   feature computation. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+(* ComputeDeltas — compute delta (first-order difference) features.
+   featureMatrix is numFrames x numFeatures LONGREALs (row-major).
+   deltaMatrix is allocated: numFrames x numFeatures LONGREALs.
+   Delta[t] = features[t] - features[t-1], with Delta[0] = 0.
+   Caller must free deltaMatrix with FreeDelta. *)
+PROCEDURE ComputeDeltas(featureMatrix: ADDRESS;
+                        numFrames, numFeatures: CARDINAL;
+                        VAR deltaMatrix: ADDRESS);
+
+(* CombineWithDeltas — concatenate features and deltas into a single matrix.
+   Output is numFrames x (2 * numFeatures) LONGREALs.
+   Layout per row: [feat0..feat33, delta0..delta33].
+   Caller must free combined with FreeDelta. *)
+PROCEDURE CombineWithDeltas(featureMatrix: ADDRESS;
+                            numFrames, numFeatures: CARDINAL;
+                            VAR combined: ADDRESS);
+
+(* FreeDelta — deallocate a delta or combined matrix. *)
+PROCEDURE FreeDelta(VAR matrix: ADDRESS);
+
+END Delta.

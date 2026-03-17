@@ -1,0 +1,19 @@
+# Build artifacts
+.mx/
+*.o
+*.dSYM/
+
+# Excluded from repo
+samples/
+CLAUDE.md
+
+# Editor/OS files
+.DS_Store
+*~
+*.swp
+
+# Python
+__pycache__/
+*.pyc
+*.py
+.idea/

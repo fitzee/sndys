@@ -1,0 +1,18 @@
+# m2.toml - m2knn: k-Nearest Neighbors classifier for audio classification
+#
+# Pure Modula-2 implementation. No external C dependencies.
+# Includes StandardScaler, k-NN with distance-weighted voting,
+# cross-validation, confusion matrix, and binary model I/O.
+manifest_version=1
+name=m2knn
+version=0.1.0
+edition=pim4
+entry=src/KNN.mod
+includes=src
+
+[deps]
+
+[test]
+entry=tests/knn_tests.mod
+
+[cc]

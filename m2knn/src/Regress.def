@@ -1,0 +1,51 @@
+DEFINITION MODULE Regress;
+(* k-NN regression — predict continuous values.
+
+   Same as k-NN classification but averages neighbor target values
+   instead of majority voting. Supports distance-weighted averaging.
+
+   Data: row-major feature matrix. Targets: LONGREAL array. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+FROM Scaler IMPORT ScalerState;
+
+TYPE
+  RegModel = RECORD
+    trainData:    ADDRESS;
+    trainTargets: ADDRESS;    (* numTrain LONGREALs *)
+    numTrain:     CARDINAL;
+    numFeatures:  CARDINAL;
+    k:            CARDINAL;
+    weighted:     BOOLEAN;
+    scaler:       ScalerState;
+    hasScaler:    BOOLEAN;
+  END;
+
+(* Init — initialize regression model. *)
+PROCEDURE Init(VAR m: RegModel; k, numFeatures: CARDINAL;
+               weighted: BOOLEAN);
+
+(* Train — store training data and targets.
+   data is numSamples x numFeatures LONGREALs.
+   targets is numSamples LONGREALs.
+   If scale=TRUE, fits and applies StandardScaler. *)
+PROCEDURE Train(VAR m: RegModel;
+                data: ADDRESS; targets: ADDRESS;
+                numSamples: CARDINAL; scale: BOOLEAN);
+
+(* Predict — predict a continuous value for a single sample.
+   sample is numFeatures LONGREALs. *)
+PROCEDURE Predict(VAR m: RegModel; sample: ADDRESS): LONGREAL;
+
+(* PredictBatch — predict values for multiple samples.
+   predictions is numSamples LONGREALs. *)
+PROCEDURE PredictBatch(VAR m: RegModel;
+                       data: ADDRESS; numSamples: CARDINAL;
+                       predictions: ADDRESS);
+
+(* MSE — compute mean squared error on test data. *)
+PROCEDURE MSE(VAR m: RegModel;
+              data: ADDRESS; targets: ADDRESS;
+              numSamples: CARDINAL): LONGREAL;
+
+END Regress.

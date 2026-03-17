@@ -1,0 +1,14 @@
+# m2.toml - m2kmeans: K-Means clustering
+manifest_version=1
+name=m2kmeans
+version=0.1.0
+edition=pim4
+entry=src/KMeans.mod
+includes=src
+
+[deps]
+
+[test]
+entry=tests/kmeans_tests.mod
+
+[cc]

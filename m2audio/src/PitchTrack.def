@@ -1,0 +1,19 @@
+DEFINITION MODULE PitchTrack;
+(* Continuous pitch (F0) tracking with median smoothing.
+   Produces a time series of fundamental frequency estimates. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+(* TrackPitch — extract F0 contour from a mono signal.
+   Outputs numFrames LONGREALs of F0 values in Hz (0.0 = unvoiced).
+   Applies median smoothing with the given window size (odd, e.g. 5).
+   Allocates pitches and times arrays. Caller frees with FreePitch. *)
+PROCEDURE TrackPitch(signal: ADDRESS; numSamples, sampleRate: CARDINAL;
+                     smoothWindow: CARDINAL;
+                     VAR pitches: ADDRESS;
+                     VAR times: ADDRESS;
+                     VAR numFrames: CARDINAL);
+
+PROCEDURE FreePitch(VAR pitches: ADDRESS; VAR times: ADDRESS);
+
+END PitchTrack.

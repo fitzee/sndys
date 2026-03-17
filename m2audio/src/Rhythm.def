@@ -1,0 +1,17 @@
+DEFINITION MODULE Rhythm;
+(* Rhythm analysis features: tempo stability and beat strength. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+(* TempoStability -- standard deviation of BPM divided by mean.
+   Lower = more stable tempo. 0 = perfectly steady.
+   bpms is numPoints LONGREALs, as returned by TempoCurve. *)
+PROCEDURE TempoStability(bpms: ADDRESS;
+                          numPoints: CARDINAL): LONGREAL;
+
+(* BeatStrength -- ratio of peak spectral flux at beat period
+   to average flux. Higher = more pronounced beat. *)
+PROCEDURE BeatStrength(signal: ADDRESS;
+                        numSamples, sampleRate: CARDINAL): LONGREAL;
+
+END Rhythm.

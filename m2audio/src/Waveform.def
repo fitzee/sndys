@@ -1,0 +1,12 @@
+DEFINITION MODULE Waveform;
+(* ASCII art waveform display for terminal output. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+(* DrawWaveform — print an ASCII waveform of the signal to stdout.
+   width: number of columns (e.g., 80).
+   height: number of rows (e.g., 20). *)
+PROCEDURE DrawWaveform(signal: ADDRESS; numSamples: CARDINAL;
+                       width, height: CARDINAL);
+
+END Waveform.

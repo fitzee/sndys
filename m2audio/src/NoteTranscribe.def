@@ -1,0 +1,38 @@
+DEFINITION MODULE NoteTranscribe;
+(* Note transcription: onsets + pitch -> note events.
+   Combines onset detection with pitch tracking to produce
+   a sequence of musical note events. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+TYPE
+  NoteEvent = RECORD
+    startSec: LONGREAL;
+    endSec: LONGREAL;
+    pitchHz: LONGREAL;
+    midiNote: INTEGER;
+    noteName: ARRAY [0..7] OF CHAR
+  END;
+
+(* Transcribe -- detect notes in an audio signal.
+   1. Detect onsets
+   2. Track pitch between consecutive onsets
+   3. Convert to note events with start/end/pitch/MIDI/name
+   Allocates notes array. Caller frees with FreeNotes. *)
+PROCEDURE Transcribe(signal: ADDRESS;
+                      numSamples, sampleRate: CARDINAL;
+                      VAR notes: ADDRESS;
+                      VAR numNotes: CARDINAL);
+
+(* HzToMidi -- convert frequency to MIDI note number.
+   69 + 12*log2(hz/440). *)
+PROCEDURE HzToMidi(hz: LONGREAL): INTEGER;
+
+(* MidiToName -- convert MIDI note number to name string.
+   E.g., 69 -> "A4", 60 -> "C4", 61 -> "C#4". *)
+PROCEDURE MidiToName(midi: INTEGER; VAR name: ARRAY OF CHAR);
+
+(* FreeNotes -- deallocate notes array. *)
+PROCEDURE FreeNotes(VAR notes: ADDRESS);
+
+END NoteTranscribe.

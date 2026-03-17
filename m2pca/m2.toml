@@ -1,0 +1,8 @@
+[project]
+name = "m2pca"
+version = "0.1.0"
+description = "Pure Modula-2 PCA and LDA for dimensionality reduction"
+
+[build]
+sources = ["src"]
+tests = ["tests"]

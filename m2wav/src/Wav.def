@@ -1,0 +1,75 @@
+DEFINITION MODULE Wav;
+(* WAV audio file reader and writer.
+   Supports PCM 8, 16, 24, and 32-bit WAV files (RIFF format),
+   including WAVE_FORMAT_EXTENSIBLE (format 65534).
+   All sample data uses LONGREAL arrays normalized to [-1.0, 1.0].
+   For stereo files, samples are interleaved: [L0, R0, L1, R1, ...]. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+TYPE
+  WavInfo = RECORD
+    sampleRate: CARDINAL;     (* samples per second, e.g. 44100 *)
+    numChannels: CARDINAL;    (* 1 = mono, 2 = stereo *)
+    bitsPerSample: CARDINAL;  (* 8 or 16 *)
+    numSamples: CARDINAL;     (* total sample frames (per channel) *)
+    dataSize: CARDINAL        (* raw PCM data size in bytes *)
+  END;
+
+(* ReadWav -- read a WAV file from disk.
+   Allocates a LONGREAL array for samples, normalized to [-1.0, 1.0].
+   For stereo files, samples are interleaved: [L0, R0, L1, R1, ...].
+   Total LONGREALs allocated = numSamples * numChannels.
+   Supports PCM 16-bit and 8-bit only.
+   Sets ok to FALSE on error (file not found, not PCM, unsupported format).
+   Caller must free samples with FreeWav when done. *)
+PROCEDURE ReadWav(path: ARRAY OF CHAR;
+                  VAR info: WavInfo;
+                  VAR samples: ADDRESS;
+                  VAR ok: BOOLEAN);
+
+(* FreeWav -- deallocate the sample array returned by ReadWav. *)
+PROCEDURE FreeWav(VAR samples: ADDRESS);
+
+(* StereoToMono -- convert interleaved stereo samples to mono.
+   Averages left and right channels: mono[i] = (L[i] + R[i]) / 2.0.
+   Allocates a new LONGREAL array of numFrames elements.
+   Caller must free the result with FreeMono when done. *)
+PROCEDURE StereoToMono(stereo: ADDRESS;
+                       numFrames: CARDINAL;
+                       VAR mono: ADDRESS);
+
+(* FreeMono -- deallocate the mono array returned by StereoToMono. *)
+PROCEDURE FreeMono(VAR mono: ADDRESS);
+
+(* Downsample -- resample a signal to a lower sample rate.
+   Uses a windowed sinc (Lanczos) low-pass filter to avoid aliasing.
+   Handles both mono and stereo input. Stereo is averaged to mono
+   during resampling (combined stereo-to-mono + downsample in one pass).
+   input is numSamples * numChannels LONGREALs at srcRate Hz.
+   numChannels is 1 for mono, 2 for interleaved stereo.
+   Output is always mono at targetRate Hz.
+   Allocates output as a new LONGREAL array.
+   outSamples returns the number of samples in the output.
+   Caller must free output with FreeMono when done. *)
+PROCEDURE Downsample(input: ADDRESS; numSamples, numChannels,
+                     srcRate, targetRate: CARDINAL;
+                     VAR output: ADDRESS; VAR outSamples: CARDINAL);
+
+(* WriteWav -- write LONGREAL samples to a WAV file.
+   Samples are expected in the range [-1.0, 1.0].
+   Converts to integer PCM (16-bit signed or 8-bit unsigned).
+   numSamples is the number of sample frames (per channel).
+   Total LONGREALs expected = numSamples * numChannels.
+   Sets ok to FALSE on error (cannot open file). *)
+PROCEDURE WriteWav(path: ARRAY OF CHAR;
+                   samples: ADDRESS;
+                   numSamples, sampleRate, numChannels,
+                   bitsPerSample: CARDINAL;
+                   VAR ok: BOOLEAN);
+
+(* GetDuration -- return the duration of the audio in seconds.
+   Computed as numSamples / sampleRate. *)
+PROCEDURE GetDuration(VAR info: WavInfo): LONGREAL;
+
+END Wav.

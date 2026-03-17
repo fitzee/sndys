@@ -1,0 +1,24 @@
+DEFINITION MODULE MidFeats;
+(* Mid-term feature extraction -- compute statistics over windows
+   of short-term features.  For each mid-term window, the mean and
+   standard deviation of every short-term feature are computed. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+(* Extract -- compute mid-term features from short-term features.
+   shortFeats: numFrames * numFeatures LONGREALs, row-major.
+   midWinFrames / midStepFrames: mid-term window / step in frames.
+   Output: numMidFrames * (2 * numFeatures) LONGREALs, row-major.
+   Layout per row: [mean_f0, ..., mean_fN, std_f0, ..., std_fN].
+   Caller must free midFeats with FreeMidFeatures when done. *)
+PROCEDURE Extract(shortFeats: ADDRESS;
+                  numFrames, numFeatures: CARDINAL;
+                  midWinFrames, midStepFrames: CARDINAL;
+                  VAR midFeats: ADDRESS;
+                  VAR numMidFrames: CARDINAL;
+                  VAR ok: BOOLEAN);
+
+(* FreeMidFeatures -- deallocate the mid-term feature matrix. *)
+PROCEDURE FreeMidFeatures(VAR midFeats: ADDRESS);
+
+END MidFeats.

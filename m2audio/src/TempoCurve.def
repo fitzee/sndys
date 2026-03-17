@@ -1,0 +1,20 @@
+DEFINITION MODULE TempoCurve;
+(* Tempo curve — BPM over time using windowed beat detection. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+(* ComputeTempoCurve — estimate BPM in sliding windows.
+   signal is numSamples LONGREALs (mono).
+   windowSec: analysis window in seconds (e.g. 10.0).
+   hopSec: step between windows in seconds (e.g. 5.0).
+   Allocates bpms and times arrays. Caller frees with FreeTempoCurve. *)
+PROCEDURE ComputeTempoCurve(signal: ADDRESS;
+                             numSamples, sampleRate: CARDINAL;
+                             windowSec, hopSec: LONGREAL;
+                             VAR bpms: ADDRESS;
+                             VAR times: ADDRESS;
+                             VAR numPoints: CARDINAL);
+
+PROCEDURE FreeTempoCurve(VAR bpms: ADDRESS; VAR times: ADDRESS);
+
+END TempoCurve.

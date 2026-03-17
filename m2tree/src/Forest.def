@@ -1,0 +1,27 @@
+DEFINITION MODULE Forest;
+
+FROM SYSTEM IMPORT ADDRESS;
+FROM DTree IMPORT Tree;
+
+TYPE
+  ForestType = (RandomForest, ExtraTrees);
+
+  Forest = RECORD
+    trees: ARRAY [0..99] OF Tree;
+    numTrees: CARDINAL;
+    forestType: ForestType;
+    numFeatures: CARDINAL;
+    numClasses: CARDINAL;
+    maxDepth: CARDINAL
+  END;
+
+PROCEDURE Init(VAR f: Forest; nTrees, nFeatures, nClasses, maxDepth: CARDINAL;
+               fType: ForestType);
+PROCEDURE Train(VAR f: Forest; data: ADDRESS; labels: ADDRESS;
+                numSamples, numFeatures: CARDINAL);
+PROCEDURE Predict(VAR f: Forest; sample: ADDRESS): INTEGER;
+PROCEDURE PredictProba(VAR f: Forest; sample: ADDRESS;
+                       VAR proba: ARRAY OF LONGREAL): INTEGER;
+PROCEDURE Free(VAR f: Forest);
+
+END Forest.

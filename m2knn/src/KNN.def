@@ -1,0 +1,86 @@
+DEFINITION MODULE KNN;
+(* k-Nearest Neighbors classifier — pure Modula-2.
+
+   Stores training data and labels. Prediction computes distances
+   to all training samples and returns the majority class among
+   the k nearest neighbors, with optional distance-weighted voting.
+
+   Data layout: row-major, numSamples rows x numFeatures columns.
+   Labels are integers 0..numClasses-1.
+
+   The classifier does not copy training data — it holds a reference
+   to the caller-provided arrays. The caller must keep training data
+   alive as long as the model is in use, or use SaveModel/LoadModel
+   for persistence. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+FROM Scaler IMPORT ScalerState;
+
+CONST
+  MaxClasses = 32;   (* maximum number of distinct classes *)
+  MaxK       = 51;   (* maximum k value *)
+
+TYPE
+  DistMetric = (Euclidean, Manhattan, Cosine);
+
+  Model = RECORD
+    trainData:    ADDRESS;     (* numTrain x numFeatures LONGREALs *)
+    trainLabels:  ADDRESS;     (* numTrain INTEGERs *)
+    numTrain:     CARDINAL;
+    numFeatures:  CARDINAL;
+    numClasses:   CARDINAL;
+    k:            CARDINAL;
+    metric:       DistMetric;
+    weighted:     BOOLEAN;     (* distance-weighted voting *)
+    scaler:       ScalerState; (* fitted scaler for normalization *)
+    hasScaler:    BOOLEAN;
+  END;
+
+(* Init — initialize a model with parameters.
+   k is the number of neighbors. metric selects the distance function.
+   weighted=TRUE uses 1/distance as vote weight. *)
+PROCEDURE Init(VAR m: Model; k, numFeatures, numClasses: CARDINAL;
+               metric: DistMetric; weighted: BOOLEAN);
+
+(* Train — store training data and labels.
+   data is numSamples x numFeatures LONGREALs (row-major).
+   labels is numSamples INTEGERs (0-based class indices).
+   If scale=TRUE, fits a StandardScaler and normalizes the data in-place. *)
+PROCEDURE Train(VAR m: Model;
+                data: ADDRESS; labels: ADDRESS;
+                numSamples: CARDINAL; scale: BOOLEAN);
+
+(* Predict — classify a single feature vector.
+   sample is numFeatures LONGREALs. Returns the predicted class label.
+   If the model has a scaler, sample is scaled internally (not modified). *)
+PROCEDURE Predict(VAR m: Model; sample: ADDRESS): INTEGER;
+
+(* PredictProba — classify and return per-class vote scores.
+   sample is numFeatures LONGREALs.
+   proba is filled with numClasses LONGREALs (normalized vote weights).
+   Returns the predicted class label. *)
+PROCEDURE PredictProba(VAR m: Model; sample: ADDRESS;
+                       VAR proba: ARRAY OF LONGREAL): INTEGER;
+
+(* PredictBatch — classify multiple samples.
+   data is numSamples x numFeatures LONGREALs.
+   predictions is filled with numSamples INTEGERs. *)
+PROCEDURE PredictBatch(VAR m: Model;
+                       data: ADDRESS; numSamples: CARDINAL;
+                       predictions: ADDRESS);
+
+(* SaveModel — write model to a binary file.
+   Saves parameters, scaler state, training data, and labels. *)
+PROCEDURE SaveModel(VAR m: Model; path: ARRAY OF CHAR;
+                    VAR ok: BOOLEAN);
+
+(* LoadModel — read model from a binary file.
+   Allocates training data and labels on the heap. *)
+PROCEDURE LoadModel(VAR m: Model; path: ARRAY OF CHAR;
+                    VAR ok: BOOLEAN);
+
+(* FreeModel — deallocate training data loaded by LoadModel.
+   Does nothing if training data was provided externally via Train. *)
+PROCEDURE FreeModel(VAR m: Model);
+
+END KNN.

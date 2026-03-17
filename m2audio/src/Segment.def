@@ -1,0 +1,65 @@
+DEFINITION MODULE Segment;
+(* Audio segmentation — split audio into labeled time regions.
+
+   Provides:
+   - Silence removal (energy-based thresholding)
+   - Supervised segmentation (per-frame classification + HMM smoothing)
+
+   Output: arrays of segment boundaries (start/end in seconds)
+   and corresponding labels. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+FROM KNN IMPORT Model;
+FROM HMM IMPORT GaussHMM;
+
+CONST
+  MaxSegments = 2048;
+
+TYPE
+  SegmentList = RECORD
+    numSegments: CARDINAL;
+    starts: ARRAY [0..2047] OF LONGREAL;  (* start time in seconds *)
+    ends:   ARRAY [0..2047] OF LONGREAL;  (* end time in seconds *)
+    labels: ARRAY [0..2047] OF INTEGER;   (* segment label *)
+  END;
+
+(* RemoveSilence — detect and remove silent regions from audio.
+   signal is numSamples LONGREALs (mono, normalized).
+   sampleRate is the sampling rate.
+   energyThreshold: fraction of max energy below which a frame is "silent"
+     (typical: 0.1 = 10% of peak energy).
+   minDurationSec: minimum segment duration to keep (typical: 0.2).
+   Fills segments with non-silent regions. *)
+PROCEDURE RemoveSilence(signal: ADDRESS; numSamples, sampleRate: CARDINAL;
+                        energyThreshold, minDurationSec: LONGREAL;
+                        VAR segments: SegmentList);
+
+(* SegmentSupervised — segment audio using a trained k-NN model
+   with optional HMM smoothing.
+   Extracts short-term features, classifies each frame, then
+   optionally applies HMM Viterbi decoding to smooth the labels.
+   useHMM: if TRUE, trains an HMM from the raw predictions and
+   re-decodes for temporal smoothing.
+   Fills segments with contiguous regions of the same label. *)
+PROCEDURE SegmentSupervised(signal: ADDRESS;
+                            numSamples, sampleRate: CARDINAL;
+                            VAR model: Model;
+                            useHMM: BOOLEAN;
+                            VAR segments: SegmentList);
+
+(* Diarize -- unsupervised speaker diarization via K-Means clustering.
+   Extracts short-term features from the signal, clusters frames
+   into numSpeakers groups, and returns segment boundaries.
+   If numSpeakers = 0, tries 2-8 speakers and picks the best
+   silhouette score. *)
+PROCEDURE Diarize(signal: ADDRESS; numSamples, sampleRate: CARDINAL;
+                  numSpeakers: CARDINAL;
+                  VAR segments: SegmentList);
+
+(* SmoothLabels -- apply moving average smoothing to a label sequence.
+   For each frame, takes the majority label in a window of windowSize frames.
+   labels is numFrames INTEGERs, modified in-place. *)
+PROCEDURE SmoothLabels(labels: ADDRESS; numFrames: CARDINAL;
+                       windowSize: CARDINAL);
+
+END Segment.

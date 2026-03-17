@@ -1,0 +1,23 @@
+# m2.toml - m2audio: Audio feature extraction library
+# Ports the core DSP pipeline from pyAudioAnalysis to Modula-2.
+manifest_version=1
+name=m2audio
+version=0.1.0
+edition=pim4
+entry=src/ShortFeats.mod
+includes=src
+
+[deps]
+m2math=path:../m2math
+m2fft=path:../m2fft
+m2dct=path:../m2dct
+m2stats=path:../m2stats
+m2wav=path:../m2wav
+m2knn=path:../m2knn
+m2hmm=path:../m2hmm
+m2kmeans=path:../m2kmeans
+
+[test]
+entry=tests/audio_tests.mod
+
+[cc]

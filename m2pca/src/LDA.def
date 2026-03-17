@@ -1,0 +1,34 @@
+DEFINITION MODULE LDA;
+
+FROM SYSTEM IMPORT ADDRESS;
+
+TYPE
+  LDAState = RECORD
+    numComponents: CARDINAL;
+    numFeatures: CARDINAL;
+    projection: ADDRESS;
+    mean: ADDRESS;
+    fitted: BOOLEAN
+  END;
+
+PROCEDURE Init(VAR l: LDAState; nComponents, nFeatures: CARDINAL);
+
+PROCEDURE Fit(VAR l: LDAState;
+              data: ADDRESS;
+              labels: ADDRESS;
+              numSamples, numFeatures, numClasses: CARDINAL);
+
+PROCEDURE Transform(VAR l: LDAState;
+                    data: ADDRESS;
+                    numSamples: CARDINAL;
+                    output: ADDRESS);
+
+PROCEDURE FitTransform(VAR l: LDAState;
+                       data: ADDRESS;
+                       labels: ADDRESS;
+                       numSamples, numFeatures, numClasses: CARDINAL;
+                       output: ADDRESS);
+
+PROCEDURE Free(VAR l: LDAState);
+
+END LDA.

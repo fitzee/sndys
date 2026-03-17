@@ -1,0 +1,26 @@
+DEFINITION MODULE GBoost;
+
+FROM SYSTEM IMPORT ADDRESS;
+FROM DTree IMPORT Tree;
+
+TYPE
+  GBModel = RECORD
+    trees: ARRAY [0..199] OF Tree;
+    weights: ARRAY [0..199] OF LONGREAL;
+    numTrees: CARDINAL;
+    numClasses: CARDINAL;
+    numFeatures: CARDINAL;
+    learningRate: LONGREAL;
+    (* For multi-class OVR: trees are grouped by class.
+       Tree index = round * numClasses + classIdx *)
+    actualNumTrees: CARDINAL
+  END;
+
+PROCEDURE Init(VAR m: GBModel; nTrees, nFeatures, nClasses: CARDINAL;
+               lr: LONGREAL);
+PROCEDURE Train(VAR m: GBModel; data: ADDRESS; labels: ADDRESS;
+                numSamples, numFeatures: CARDINAL);
+PROCEDURE Predict(VAR m: GBModel; sample: ADDRESS): INTEGER;
+PROCEDURE Free(VAR m: GBModel);
+
+END GBoost.

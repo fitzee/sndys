@@ -1,0 +1,20 @@
+DEFINITION MODULE Harmonic;
+(* Harmonic ratio and fundamental frequency (F0) estimation
+   via autocorrelation.
+
+   Harmonic ratio: max autocorrelation / autocorrelation at lag 0.
+   Measures how periodic/harmonic a signal is (1.0 = pure tone, 0.0 = noise).
+
+   F0: fundamental frequency corresponding to the peak autocorrelation lag. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+(* ComputeHarmonicF0 — estimate harmonic ratio and F0 for a frame.
+   frame is frameLen LONGREALs.
+   sampleRate is the sampling frequency in Hz.
+   Searches for autocorrelation peak in the range 50-500 Hz. *)
+PROCEDURE ComputeHarmonicF0(frame: ADDRESS; frameLen, sampleRate: CARDINAL;
+                             VAR harmonicRatio: LONGREAL;
+                             VAR f0: LONGREAL);
+
+END Harmonic.

@@ -1,0 +1,66 @@
+DEFINITION MODULE Stats;
+
+(* Stats -- basic statistical functions for audio/DSP feature extraction.
+   All procedures operate on flat LONGREAL arrays passed as ADDRESS
+   with an element count. Pointer arithmetic uses LONGCARD for 64-bit
+   safety. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+TYPE
+  RealPtr = POINTER TO LONGREAL;
+
+(* Mean -- arithmetic mean of n elements.
+   Returns 0.0 if n is 0. *)
+PROCEDURE Mean(data: ADDRESS; n: CARDINAL): LONGREAL;
+
+(* Variance -- population variance of n elements.
+   Returns 0.0 if n is 0. *)
+PROCEDURE Variance(data: ADDRESS; n: CARDINAL): LONGREAL;
+
+(* StdDev -- population standard deviation of n elements.
+   Square root of population variance. Returns 0.0 if n is 0. *)
+PROCEDURE StdDev(data: ADDRESS; n: CARDINAL): LONGREAL;
+
+(* Min -- minimum value in the array.
+   Returns 0.0 if n is 0. *)
+PROCEDURE Min(data: ADDRESS; n: CARDINAL): LONGREAL;
+
+(* Max -- maximum value in the array.
+   Returns 0.0 if n is 0. *)
+PROCEDURE Max(data: ADDRESS; n: CARDINAL): LONGREAL;
+
+(* ArgMin -- index of the minimum value.
+   Returns 0 if n is 0. *)
+PROCEDURE ArgMin(data: ADDRESS; n: CARDINAL): CARDINAL;
+
+(* ArgMax -- index of the maximum value.
+   Returns 0 if n is 0. *)
+PROCEDURE ArgMax(data: ADDRESS; n: CARDINAL): CARDINAL;
+
+(* Sum -- sum of all elements.
+   Returns 0.0 if n is 0. *)
+PROCEDURE Sum(data: ADDRESS; n: CARDINAL): LONGREAL;
+
+(* SumSq -- sum of squares of all elements.
+   Returns 0.0 if n is 0. *)
+PROCEDURE SumSq(data: ADDRESS; n: CARDINAL): LONGREAL;
+
+(* Entropy -- Shannon entropy using natural logarithm.
+   Treats data as a probability distribution, normalizing by sum first.
+   Returns 0.0 for all-zero input or if n is 0. *)
+PROCEDURE Entropy(data: ADDRESS; n: CARDINAL): LONGREAL;
+
+(* Normalize -- in-place normalize so elements sum to 1.0.
+   No-op if sum is 0.0 or n is 0. *)
+PROCEDURE Normalize(data: ADDRESS; n: CARDINAL);
+
+(* ZScore -- in-place z-score normalization: x[i] = (x[i] - mean) / sd.
+   No-op if sd is 0.0 or n is 0. *)
+PROCEDURE ZScore(data: ADDRESS; n: CARDINAL; mean, sd: LONGREAL);
+
+(* DotProduct -- dot product of two vectors of length n.
+   Returns 0.0 if n is 0. *)
+PROCEDURE DotProduct(a, b: ADDRESS; n: CARDINAL): LONGREAL;
+
+END Stats.

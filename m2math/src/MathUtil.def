@@ -1,0 +1,54 @@
+DEFINITION MODULE MathUtil;
+(* Extended math utilities for DSP and audio analysis.
+   All floating-point procedures use LONGREAL (64-bit double).
+   Built on top of MathLib (sqrt, sin, cos, exp, ln, arctan). *)
+
+CONST
+  Pi    = 3.14159265358979323846D0;
+  TwoPi = 6.28318530717958647692D0;
+  Ln10  = 2.30258509299404568402D0;
+  E     = 2.71828182845904523536D0;
+
+(* Log10 -- base-10 logarithm.
+   Returns ln(x) / ln(10).  x must be > 0. *)
+PROCEDURE Log10(x: LONGREAL): LONGREAL;
+
+(* Log2 -- base-2 logarithm.
+   Returns ln(x) / ln(2).  x must be > 0. *)
+PROCEDURE Log2(x: LONGREAL): LONGREAL;
+
+(* Pow -- raise base to the power exp.
+   Computes exp(expon * ln(base)).
+   Returns 0.0 if base = 0.0 and expon > 0.0. *)
+PROCEDURE Pow(base, expon: LONGREAL): LONGREAL;
+
+(* Floor -- largest integer not greater than x.
+   Returns the result as LONGINT. *)
+PROCEDURE Floor(x: LONGREAL): LONGINT;
+
+(* Ceil -- smallest integer not less than x.
+   Returns the result as LONGINT. *)
+PROCEDURE Ceil(x: LONGREAL): LONGINT;
+
+(* FAbs -- absolute value for LONGREAL. *)
+PROCEDURE FAbs(x: LONGREAL): LONGREAL;
+
+(* FMod -- floating-point remainder of x / y.
+   Returns x - TRUNC(x/y) * y.  y must not be 0. *)
+PROCEDURE FMod(x, y: LONGREAL): LONGREAL;
+
+(* Clamp -- constrain x to the range [lo, hi].
+   Returns lo if x < lo, hi if x > hi, otherwise x. *)
+PROCEDURE Clamp(x, lo, hi: LONGREAL): LONGREAL;
+
+(* Hypot -- hypotenuse length: sqrt(x*x + y*y). *)
+PROCEDURE Hypot(x, y: LONGREAL): LONGREAL;
+
+(* NextPow2 -- smallest power of 2 >= n.
+   Returns 1 when n = 0. *)
+PROCEDURE NextPow2(n: CARDINAL): CARDINAL;
+
+(* IsPow2 -- TRUE if n is a power of 2 (and n > 0). *)
+PROCEDURE IsPow2(n: CARDINAL): BOOLEAN;
+
+END MathUtil.

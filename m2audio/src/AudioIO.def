@@ -1,0 +1,25 @@
+DEFINITION MODULE AudioIO;
+(* Higher-level audio I/O built on m2wav.
+   Provides mono signal reading and pre-emphasis filtering. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+(* ReadAudio -- read a WAV file, auto-convert stereo to mono.
+   Output is always a mono LONGREAL array normalized to [-1.0, 1.0].
+   Caller must free the signal with FreeSignal when done. *)
+PROCEDURE ReadAudio(path: ARRAY OF CHAR;
+                    VAR signal: ADDRESS;
+                    VAR numSamples: CARDINAL;
+                    VAR sampleRate: CARDINAL;
+                    VAR ok: BOOLEAN);
+
+(* FreeSignal -- deallocate the signal array returned by ReadAudio. *)
+PROCEDURE FreeSignal(VAR signal: ADDRESS);
+
+(* PreEmphasis -- apply pre-emphasis filter to a signal.
+   y[n] = x[n] - coeff * x[n-1], typical coeff = 0.97.
+   output must be caller-allocated with space for n LONGREALs. *)
+PROCEDURE PreEmphasis(signal: ADDRESS; n: CARDINAL;
+                      coeff: LONGREAL; output: ADDRESS);
+
+END AudioIO.

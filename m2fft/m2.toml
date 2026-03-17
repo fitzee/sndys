@@ -1,0 +1,14 @@
+# m2.toml - m2fft: Radix-2 Cooley-Tukey FFT for spectral analysis
+manifest_version=1
+name=m2fft
+version=0.1.0
+edition=pim4
+entry=src/FFT.mod
+includes=src
+
+[deps]
+
+[test]
+entry=tests/fft_tests.mod
+
+[cc]

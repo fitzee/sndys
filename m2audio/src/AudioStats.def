@@ -1,0 +1,24 @@
+DEFINITION MODULE AudioStats;
+(* Audio statistics — RMS, peak, crest factor, DC offset, clipping. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+TYPE
+  StatsResult = RECORD
+    rmsLevel:    LONGREAL;  (* root mean square *)
+    peakLevel:   LONGREAL;  (* maximum absolute value *)
+    crestFactor: LONGREAL;  (* peak / RMS in dB *)
+    dcOffset:    LONGREAL;  (* mean sample value *)
+    rmsDB:       LONGREAL;  (* 20*log10(rms), relative to 1.0 *)
+    peakDB:      LONGREAL;  (* 20*log10(peak), relative to 1.0 *)
+    numClipped:  CARDINAL;  (* samples at or above 0.99 *)
+    numSamples:  CARDINAL;
+    duration:    LONGREAL;  (* seconds *)
+  END;
+
+(* Analyze — compute audio statistics on a mono signal.
+   signal is numSamples LONGREALs normalized to [-1.0, 1.0]. *)
+PROCEDURE Analyze(signal: ADDRESS; numSamples, sampleRate: CARDINAL;
+                  VAR result: StatsResult);
+
+END AudioStats.

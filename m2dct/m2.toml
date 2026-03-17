@@ -1,0 +1,14 @@
+# m2.toml - m2dct: Discrete Cosine Transform for MFCC computation
+manifest_version=1
+name=m2dct
+version=0.1.0
+edition=pim4
+entry=src/DCT.mod
+includes=src
+
+[deps]
+
+[test]
+entry=tests/dct_tests.mod
+
+[cc]

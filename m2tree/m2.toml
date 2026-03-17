@@ -1,0 +1,8 @@
+[project]
+name = "m2tree"
+version = "0.1.0"
+description = "Decision tree, random forest, extra trees, and gradient boosting classifiers in pure Modula-2"
+
+[build]
+src = ["src"]
+tests = ["tests"]
