@@ -14,67 +14,72 @@ Binary: `.mx/bin/sndys`
 ## Commands
 
 ```
-Info:
-  info        <file.wav>                      File metadata
-  spectrum    <file.wav>                      Top 20 FFT bins
-  spectrogram <file.wav>                      Spectrogram (CSV)
-  chromagram  <file.wav>                      Chromagram (CSV)
+Notes:
+  Most commands expect mono PCM WAV input (8/16/24/32-bit).
+  Stereo files are auto-converted to mono on read.
+  Use 'convert' for MP3/OGG/FLAC/AAC (requires ffmpeg).
 
-Analysis:
-  features    <file.wav>                      34 features per frame (CSV)
-  midstats    <file.wav>                      Per-feature mean/std summary
-  beats       <file.wav>                      Estimate BPM
-  tempocurve  <file.wav> [win] [hop]          BPM over time
-  key         <file.wav>                      Detect musical key
-  pitch       <file.wav>                      Pitch (F0) contour (CSV)
-  harmonic    <file.wav>                      Harmonic ratio + F0 (CSV)
-  onsets      <file.wav> [sensitivity]        Note onset times
-  silence     <file.wav> [thresh] [min_dur]   Non-silent regions
-  compare     <file1.wav> <file2.wav>         Similarity score
-  thumbnail   <in> <out> [duration_sec]       Most representative segment
-  analyze     <file.wav>                      Full analysis report
+Core Analysis:
+  info        <file.wav>                      WAV metadata (scalar)
+  stats       <file.wav>                      RMS, peak, crest factor, DC offset (scalar)
+  features    <file.wav>                      34 spectral/temporal/MFCC/chroma features (CSV)
+  midstats    <file.wav>                      Per-feature mean+std over mid-term windows (CSV)
+  spectrum    <file.wav>                      Top 20 FFT magnitude bins (list)
+  spectrogram <file.wav>                      Time-frequency magnitude spectrogram (CSV)
+  chromagram  <file.wav>                      12-pitch-class energy over time (CSV)
+  flatness    <file.wav>                      Spectral flatness per frame (CSV)
+  silence     <file.wav> [thresh] [min_dur]   Non-silent segment boundaries (list)
+  compare     <file1.wav> <file2.wav>         Feature-vector distance (scalar)
+  analyze     <file.wav>                      Full composite analysis report
+
+Rhythm / Pitch / Harmony:
+  beats       <file.wav>                      Estimated BPM and confidence (scalar)
+  tempocurve  <file.wav> [win] [hop]          BPM over sliding windows (CSV)
+  stability   <file.wav>                      Tempo stability: std/mean of BPM curve (scalar)
+  onsets      <file.wav> [sensitivity]        Onset times via spectral flux peaks (list)
+  pitch       <file.wav>                      F0 contour via autocorrelation (CSV)
+  harmonic    <file.wav>                      Harmonic ratio + F0 per frame (CSV)
+  key         <file.wav>                      Musical key via Krumhansl-Schmuckler (scalar)
+  chords      <file.wav>                      Chord sequence from chroma templates (list)
+  notes       <file.wav>                      Note events: onset + pitch -> MIDI (list)
+  tonnetz     <file.wav>                      6-dim tonal centroid per frame (CSV)
+  thumbnail   <in> <out> [duration_sec]       Extract most self-similar segment (WAV)
+
+Vocal / Speech:
+  voice       <file.wav>                      Formants, jitter, shimmer, HNR (scalar)
+                                              [speech/vocal input expected]
+  diarize     <file.wav> [num_speakers]       Speaker segmentation via K-means (list)
+                                              [speech input expected; auto 2-8 speakers]
 
 Classification:
-  train       <dir1> <dir2> [...] -o <model>  Train k-NN classifier
-  predict     <model> <file.wav>              Classify a file
-  segment     <model> <file.wav> [--hmm]      Segment by class
-  diarize     <file.wav> [num_speakers]       Speaker diarization
+  train       <dir1> <dir2> [...] -o <model>  Train k-NN classifier from directories
+  predict     <model> <file.wav>              Classify file against trained model (scalar)
+  segment     <model> <file.wav> [--hmm]      Model-based frame segmentation (list)
 
 Processing:
-  trim        <in> <out> <start> <end>        Extract time region
-  concat      <a.wav> <b.wav> <out> [xfade]   Join files with crossfade
-  mix         <a.wav> <b.wav> <out> [ratio]   Mix two files
-  normalize   <in> <out> [peak]               Peak normalization
-  fade        <in> <out> <in_sec> <out_sec>   Apply fades
-  reverse     <in> <out>                      Reverse audio
-  mono        <in> <out>                      Stereo to mono
-  downsample  <in> <out> <rate>               Resample (Lanczos)
-  lowpass     <in> <out> <freq_hz>            Butterworth low-pass
-  highpass    <in> <out> <freq_hz>            Butterworth high-pass
-  bandpass    <in> <out> <lo_hz> <hi_hz>      Butterworth band-pass
+  trim        <in> <out> <start> <end>        Extract time region in seconds (WAV)
+  concat      <a.wav> <b.wav> <out> [xfade]   Concatenate with optional crossfade (WAV)
+  mix         <a.wav> <b.wav> <out> [ratio]   Mix two files; ratio 0=A, 1=B (WAV)
+  normalize   <in> <out> [peak]               Peak normalization to target (WAV)
+  fade        <in> <out> <in_sec> <out_sec>   Linear fade-in/fade-out (WAV)
+  reverse     <in> <out>                      Time-reverse signal (WAV)
+  mono        <in> <out>                      Stereo to mono downmix (WAV)
+  downsample  <in> <out> <rate>               Lanczos resample to target rate (WAV)
+  lowpass     <in> <out> <freq_hz>            4th-order Butterworth low-pass (WAV)
+  highpass    <in> <out> <freq_hz>            4th-order Butterworth high-pass (WAV)
+  bandpass    <in> <out> <lo_hz> <hi_hz>      4th-order Butterworth band-pass (WAV)
 
-Playback:
-  play        <file.wav>                      Play audio (key to stop)
-
-Generation:
-  generate    sine  <out> <freq> <dur> [amp]  Sine tone
-  generate    chirp <out> <start> <end> <dur> Frequency sweep
-  generate    noise <out> <dur> [amp]         White noise
-  generate    click <out> <bpm> <dur>         Click track
-
-Music Intelligence:
-  chords      <file.wav>                      Chord sequence
-  notes       <file.wav>                      Note transcription
-  tonnetz     <file.wav>                      Tonal centroid (CSV)
-  voice       <file.wav>                      Formants, jitter, shimmer, HNR
-  flatness    <file.wav>                      Spectral flatness (CSV)
-  stability   <file.wav>                      Tempo stability score
+Playback / Generation:
+  play        <file.wav>                      SDL2 queued playback (any key to stop)
+  generate    sine  <out> <freq> <dur> [amp]  Sine tone (WAV)
+  generate    chirp <out> <start> <end> <dur> Linear frequency sweep (WAV)
+  generate    noise <out> <dur> [amp]         White noise (WAV)
+  generate    click <out> <bpm> <dur>         Metronome click track (WAV)
 
 Utilities:
-  stats       <file.wav>                      RMS, peak, crest factor, DC
-  waveform    <file.wav>                      ASCII waveform display
-  convert     <input> <output.wav> [rate]     Convert via ffmpeg
-  batch       <command> <directory>            Run on all WAVs in dir
+  waveform    <file.wav>                      ASCII waveform to terminal
+  convert     <input> <output.wav> [rate]     Convert via ffmpeg to PCM WAV
+  batch       <command> <dir>                 Run command on all WAVs in directory
   version                                     Show version
 ```
 

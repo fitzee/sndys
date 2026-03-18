@@ -92,6 +92,60 @@ BEGIN
   RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END ElemR;
 
+(* Vocal likelihood heuristic: estimates whether signal contains speech/vocals.
+   Uses harmonic ratio (periodicity) and pitch voicing rate.
+   Returns 0.0..1.0 where >0.3 suggests vocal content.
+   Fast: analyzes first 5 seconds only. *)
+PROCEDURE VocalLikelihood(signal: ADDRESS; numSamples, sampleRate: CARDINAL): LONGREAL;
+VAR
+  pitches, ptimes: ADDRESS;
+  numFrames, i, voiced: CARDINAL;
+  p: RealPtr;
+  cap, hr, f0, voicedRatio, score: LONGREAL;
+  winSamp: CARDINAL;
+BEGIN
+  IF numSamples = 0 THEN RETURN 0.0 END;
+  (* Cap at 5 seconds *)
+  cap := LFLOAT(sampleRate) * 5.0;
+  IF LFLOAT(numSamples) > cap THEN
+    numSamples := TRUNC(cap)
+  END;
+
+  (* Pitch voicing rate *)
+  TrackPitch(signal, numSamples, sampleRate, 5, pitches, ptimes, numFrames);
+  IF numFrames = 0 THEN RETURN 0.0 END;
+
+  voiced := 0;
+  FOR i := 0 TO numFrames - 1 DO
+    p := ElemR(pitches, i);
+    IF p^ > 0.0 THEN INC(voiced) END
+  END;
+  voicedRatio := LFLOAT(voiced) / LFLOAT(numFrames);
+  FreePitch(pitches, ptimes, numFrames);
+
+  (* Harmonic ratio of first frame *)
+  winSamp := TRUNC(0.050 * LFLOAT(sampleRate));
+  IF winSamp > numSamples THEN winSamp := numSamples END;
+  IF winSamp < 4 THEN RETURN 0.0 END;
+  ComputeHarmonicF0(signal, winSamp, sampleRate, hr, f0);
+
+  (* Score: weighted combination *)
+  score := voicedRatio * 0.7 + hr * 0.3;
+  IF score > 1.0 THEN score := 1.0 END;
+  RETURN score
+END VocalLikelihood;
+
+PROCEDURE WarnIfNotVocal(signal: ADDRESS; numSamples, sampleRate: CARDINAL);
+VAR vl: LONGREAL;
+BEGIN
+  vl := VocalLikelihood(signal, numSamples, sampleRate);
+  IF vl < 0.3 THEN
+    WriteString("  warning: low vocal likelihood (");
+    PrintReal(vl, 2);
+    WriteString("); results may be unreliable for non-speech input"); WriteLn
+  END
+END WarnIfNotVocal;
+
 PROCEDURE PrintReal(x: LONGREAL; decimals: CARDINAL);
 VAR
   intP: LONGINT;
@@ -153,72 +207,77 @@ END StrEq;
 
 PROCEDURE PrintUsage;
 BEGIN
-  WriteString("sndys — audio analysis toolkit (Modula-2)"); WriteLn;
+  WriteString("sndys — audio analysis toolkit"); WriteLn;
   WriteLn;
   WriteString("Usage: sndys <command> [args...]"); WriteLn;
   WriteLn;
-  WriteString("Info:"); WriteLn;
-  WriteString("  info        <file.wav>                      File metadata"); WriteLn;
-  WriteString("  spectrum    <file.wav>                      Top 20 FFT bins"); WriteLn;
-  WriteString("  spectrogram <file.wav>                      Spectrogram (CSV)"); WriteLn;
-  WriteString("  chromagram  <file.wav>                      Chromagram (CSV)"); WriteLn;
+  WriteString("Notes:"); WriteLn;
+  WriteString("  Most commands expect mono PCM WAV input (8/16/24/32-bit)."); WriteLn;
+  WriteString("  Stereo files are auto-converted to mono on read."); WriteLn;
+  WriteString("  Use 'convert' for MP3/OGG/FLAC/AAC (requires ffmpeg)."); WriteLn;
   WriteLn;
-  WriteString("Analysis:"); WriteLn;
-  WriteString("  features    <file.wav>                      34 features (CSV)"); WriteLn;
-  WriteString("  midstats    <file.wav>                      Per-feature mean/std"); WriteLn;
-  WriteString("  beats       <file.wav>                      Estimate BPM"); WriteLn;
-  WriteString("  tempocurve  <file.wav> [win] [hop]          BPM over time"); WriteLn;
-  WriteString("  key         <file.wav>                      Detect musical key"); WriteLn;
-  WriteString("  pitch       <file.wav>                      Pitch contour (CSV)"); WriteLn;
-  WriteString("  harmonic    <file.wav>                      Harmonic ratio + F0"); WriteLn;
-  WriteString("  onsets      <file.wav> [sensitivity]        Note onset times"); WriteLn;
-  WriteString("  silence     <file.wav> [thresh] [min_dur]   Non-silent regions"); WriteLn;
-  WriteString("  compare     <file1.wav> <file2.wav>         Similarity score"); WriteLn;
-  WriteString("  thumbnail   <in> <out> [duration_sec]       Most representative segment"); WriteLn;
+  WriteString("Core Analysis:"); WriteLn;
+  WriteString("  info        <file.wav>                      WAV metadata (scalar)"); WriteLn;
+  WriteString("  stats       <file.wav>                      RMS, peak, crest factor, DC offset (scalar)"); WriteLn;
+  WriteString("  features    <file.wav>                      34 spectral/temporal/MFCC/chroma features (CSV)"); WriteLn;
+  WriteString("  midstats    <file.wav>                      Per-feature mean+std over mid-term windows (CSV)"); WriteLn;
+  WriteString("  spectrum    <file.wav>                      Top 20 FFT magnitude bins (list)"); WriteLn;
+  WriteString("  spectrogram <file.wav>                      Time-frequency magnitude spectrogram (CSV)"); WriteLn;
+  WriteString("  chromagram  <file.wav>                      12-pitch-class energy over time (CSV)"); WriteLn;
+  WriteString("  flatness    <file.wav>                      Spectral flatness per frame (CSV)"); WriteLn;
+  WriteString("  silence     <file.wav> [thresh] [min_dur]   Non-silent segment boundaries (list)"); WriteLn;
+  WriteString("  compare     <file1.wav> <file2.wav>         Feature-vector distance (scalar)"); WriteLn;
+  WriteString("  analyze     <file.wav>                      Full composite analysis report"); WriteLn;
+  WriteLn;
+  WriteString("Rhythm / Pitch / Harmony:"); WriteLn;
+  WriteString("  beats       <file.wav>                      Estimated BPM and confidence (scalar)"); WriteLn;
+  WriteString("  tempocurve  <file.wav> [win] [hop]          BPM over sliding windows (CSV)"); WriteLn;
+  WriteString("  stability   <file.wav>                      Tempo stability: std/mean of BPM curve (scalar)"); WriteLn;
+  WriteString("  onsets      <file.wav> [sensitivity]        Onset times via spectral flux peaks (list)"); WriteLn;
+  WriteString("  pitch       <file.wav>                      F0 contour via autocorrelation (CSV)"); WriteLn;
+  WriteString("  harmonic    <file.wav>                      Harmonic ratio + F0 per frame (CSV)"); WriteLn;
+  WriteString("  key         <file.wav>                      Musical key via Krumhansl-Schmuckler (scalar)"); WriteLn;
+  WriteString("  chords      <file.wav>                      Chord sequence from chroma templates (list)"); WriteLn;
+  WriteString("  notes       <file.wav>                      Note events: onset + pitch -> MIDI (list)"); WriteLn;
+  WriteString("  tonnetz     <file.wav>                      6-dim tonal centroid per frame (CSV)"); WriteLn;
+  WriteString("  thumbnail   <in> <out> [duration_sec]       Extract most self-similar segment (WAV)"); WriteLn;
+  WriteLn;
+  WriteString("Vocal / Speech:"); WriteLn;
+  WriteString("  voice       <file.wav>                      Formants, jitter, shimmer, HNR (scalar)"); WriteLn;
+  WriteString("                                              [speech/vocal input expected]"); WriteLn;
+  WriteString("  diarize     <file.wav> [num_speakers]       Speaker segmentation via K-means (list)"); WriteLn;
+  WriteString("                                              [speech input expected; auto 2-8 speakers]"); WriteLn;
   WriteLn;
   WriteString("Classification:"); WriteLn;
-  WriteString("  train       <dir1> <dir2> [...] -o <model>  Train k-NN classifier"); WriteLn;
-  WriteString("  predict     <model> <file.wav>              Classify a file"); WriteLn;
-  WriteString("  segment     <model> <file.wav> [--hmm]      Segment by class"); WriteLn;
-  WriteString("  diarize     <file.wav> [num_speakers]       Speaker diarization"); WriteLn;
+  WriteString("  train       <dir1> <dir2> [...] -o <model>  Train k-NN classifier from directories"); WriteLn;
+  WriteString("  predict     <model> <file.wav>              Classify file against trained model (scalar)"); WriteLn;
+  WriteString("  segment     <model> <file.wav> [--hmm]      Model-based frame segmentation (list)"); WriteLn;
   WriteLn;
   WriteString("Processing:"); WriteLn;
-  WriteString("  trim        <in> <out> <start> <end>        Extract time region"); WriteLn;
-  WriteString("  concat      <a.wav> <b.wav> <out> [xfade]   Join files"); WriteLn;
-  WriteString("  mix         <a.wav> <b.wav> <out> [ratio]   Mix two files"); WriteLn;
-  WriteString("  normalize   <in> <out> [peak]               Peak normalization"); WriteLn;
-  WriteString("  fade        <in> <out> <in_sec> <out_sec>   Apply fades"); WriteLn;
-  WriteString("  reverse     <in> <out>                      Reverse audio"); WriteLn;
-  WriteString("  mono        <in> <out>                      Stereo to mono"); WriteLn;
-  WriteString("  downsample  <in> <out> <rate>               Resample to mono"); WriteLn;
-  WriteString("  lowpass     <in> <out> <freq_hz>            Low-pass filter"); WriteLn;
-  WriteString("  highpass    <in> <out> <freq_hz>            High-pass filter"); WriteLn;
-  WriteString("  bandpass    <in> <out> <lo_hz> <hi_hz>      Band-pass filter"); WriteLn;
+  WriteString("  trim        <in> <out> <start> <end>        Extract time region in seconds (WAV)"); WriteLn;
+  WriteString("  concat      <a.wav> <b.wav> <out> [xfade]   Concatenate with optional crossfade (WAV)"); WriteLn;
+  WriteString("  mix         <a.wav> <b.wav> <out> [ratio]   Mix two files; ratio 0=A, 1=B (WAV)"); WriteLn;
+  WriteString("  normalize   <in> <out> [peak]               Peak normalization to target (WAV)"); WriteLn;
+  WriteString("  fade        <in> <out> <in_sec> <out_sec>   Linear fade-in/fade-out (WAV)"); WriteLn;
+  WriteString("  reverse     <in> <out>                      Time-reverse signal (WAV)"); WriteLn;
+  WriteString("  mono        <in> <out>                      Stereo to mono downmix (WAV)"); WriteLn;
+  WriteString("  downsample  <in> <out> <rate>               Lanczos resample to target rate (WAV)"); WriteLn;
+  WriteString("  lowpass     <in> <out> <freq_hz>            4th-order Butterworth low-pass (WAV)"); WriteLn;
+  WriteString("  highpass    <in> <out> <freq_hz>            4th-order Butterworth high-pass (WAV)"); WriteLn;
+  WriteString("  bandpass    <in> <out> <lo_hz> <hi_hz>      4th-order Butterworth band-pass (WAV)"); WriteLn;
   WriteLn;
-  WriteString("Playback:"); WriteLn;
-  WriteString("  play        <file.wav>                      Play audio (key to stop)"); WriteLn;
-  WriteLn;
-  WriteString("Generation:"); WriteLn;
-  WriteString("  generate    sine  <out> <freq> <dur> [amp]"); WriteLn;
-  WriteString("  generate    chirp <out> <startHz> <endHz> <dur>"); WriteLn;
-  WriteString("  generate    noise <out> <dur> [amp]"); WriteLn;
-  WriteString("  generate    click <out> <bpm> <dur>"); WriteLn;
-  WriteLn;
-  WriteString("Music Intelligence:"); WriteLn;
-  WriteString("  chords      <file.wav>                      Chord sequence"); WriteLn;
-  WriteString("  notes       <file.wav>                      Note transcription"); WriteLn;
-  WriteString("  tonnetz     <file.wav>                      Tonal centroid (CSV)"); WriteLn;
-  WriteString("  voice       <file.wav>                      Formants, jitter, shimmer, HNR"); WriteLn;
-  WriteString("  flatness    <file.wav>                      Spectral flatness (CSV)"); WriteLn;
-  WriteString("  stability   <file.wav>                      Tempo stability score"); WriteLn;
+  WriteString("Playback / Generation:"); WriteLn;
+  WriteString("  play        <file.wav>                      SDL2 queued playback (any key to stop)"); WriteLn;
+  WriteString("  generate    sine  <out> <freq> <dur> [amp]  Sine tone (WAV)"); WriteLn;
+  WriteString("  generate    chirp <out> <start> <end> <dur> Linear frequency sweep (WAV)"); WriteLn;
+  WriteString("  generate    noise <out> <dur> [amp]         White noise (WAV)"); WriteLn;
+  WriteString("  generate    click <out> <bpm> <dur>         Metronome click track (WAV)"); WriteLn;
   WriteLn;
   WriteString("Utilities:"); WriteLn;
-  WriteString("  stats       <file.wav>                      RMS, peak, crest, DC"); WriteLn;
-  WriteString("  waveform    <file.wav>                      ASCII waveform display"); WriteLn;
-  WriteString("  convert     <input> <output.wav> [rate]     Convert via ffmpeg"); WriteLn;
-  WriteString("  analyze     <file.wav>                      Full analysis report"); WriteLn;
-  WriteString("  batch       <command> <dir>                  Run on all WAVs in dir"); WriteLn;
-  WriteString("  version                                      Show version"); WriteLn
+  WriteString("  waveform    <file.wav>                      ASCII waveform to terminal"); WriteLn;
+  WriteString("  convert     <input> <output.wav> [rate]     Convert via ffmpeg to PCM WAV"); WriteLn;
+  WriteString("  batch       <command> <dir>                 Run command on all WAVs in directory"); WriteLn;
+  WriteString("  version                                     Show version"); WriteLn
 END PrintUsage;
 
 (* ════════════════════════════════════════════════════ *)
@@ -964,6 +1023,7 @@ BEGIN
   END;
 
   WriteString("Speaker diarization: "); WriteString(path); WriteLn;
+  WarnIfNotVocal(signal, numSamples, sampleRate);
   IF numSpeakers > 0 THEN
     WriteString("  Speakers: "); WriteCard(numSpeakers, 0); WriteLn
   ELSE
@@ -1659,6 +1719,7 @@ BEGIN
   IF NOT ok THEN WriteString("Error reading file"); WriteLn; HALT END;
 
   WriteString("Voice analysis: "); WriteString(path); WriteLn;
+  WarnIfNotVocal(signal, numSamples, sampleRate);
   WriteLn;
 
   (* Formants from first voiced frame *)
