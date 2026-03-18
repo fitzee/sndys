@@ -28,8 +28,9 @@ PROCEDURE ReadWav(path: ARRAY OF CHAR;
                   VAR samples: ADDRESS;
                   VAR ok: BOOLEAN);
 
-(* FreeWav -- deallocate the sample array returned by ReadWav. *)
-PROCEDURE FreeWav(VAR samples: ADDRESS);
+(* FreeWav -- deallocate the sample array returned by ReadWav.
+   numElements = info.numSamples * info.numChannels. *)
+PROCEDURE FreeWav(VAR samples: ADDRESS; numElements: CARDINAL);
 
 (* StereoToMono -- convert interleaved stereo samples to mono.
    Averages left and right channels: mono[i] = (L[i] + R[i]) / 2.0.
@@ -39,8 +40,9 @@ PROCEDURE StereoToMono(stereo: ADDRESS;
                        numFrames: CARDINAL;
                        VAR mono: ADDRESS);
 
-(* FreeMono -- deallocate the mono array returned by StereoToMono. *)
-PROCEDURE FreeMono(VAR mono: ADDRESS);
+(* FreeMono -- deallocate the mono array returned by StereoToMono.
+   numSamples = the number of mono frames. *)
+PROCEDURE FreeMono(VAR mono: ADDRESS; numSamples: CARDINAL);
 
 (* Downsample -- resample a signal to a lower sample rate.
    Uses a windowed sinc (Lanczos) low-pass filter to avoid aliasing.

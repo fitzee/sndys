@@ -16,12 +16,12 @@ CONST
 
 PROCEDURE ElemR(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END ElemR;
 
 PROCEDURE ElemI(base: ADDRESS; i: CARDINAL): IntPtr;
 BEGIN
-  RETURN IntPtr(LONGCARD(base) + LONGCARD(i * TSIZE(INTEGER)))
+  RETURN IntPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(INTEGER)))
 END ElemI;
 
 (* ── Distance functions ──────────────────────────────── *)
@@ -95,14 +95,16 @@ BEGIN
   m.trainData := NIL;
   m.trainLabels := NIL;
   m.numTrain := 0;
-  m.numFeatures := numFeatures;
-  m.numClasses := numClasses;
+  IF numFeatures > 128 THEN m.numFeatures := 128
+  ELSE m.numFeatures := numFeatures END;
+  IF numClasses > MaxClasses THEN m.numClasses := MaxClasses
+  ELSE m.numClasses := numClasses END;
   IF k > MaxK THEN m.k := MaxK ELSE m.k := k END;
   IF m.k = 0 THEN m.k := 1 END;
   m.metric := metric;
   m.weighted := weighted;
   m.hasScaler := FALSE;
-  Scaler.Init(m.scaler, numFeatures)
+  Scaler.Init(m.scaler, m.numFeatures)
 END Init;
 
 PROCEDURE Train(VAR m: Model;
@@ -145,11 +147,20 @@ VAR
   (* Vote accumulation *)
   votes: ARRAY [0..31] OF LONGREAL;
 BEGIN
+  IF (m.numTrain = 0) OR (m.trainData = NIL) OR (m.numClasses = 0) THEN
+    FOR c := 0 TO HIGH(proba) DO proba[c] := 0.0 END;
+    RETURN 0
+  END;
+
   (* Scale sample if model has scaler *)
   IF m.hasScaler THEN
     FOR i := 0 TO m.numFeatures - 1 DO
       pSrc := ElemR(sample, i);
-      scaledBuf[i] := (pSrc^ - m.scaler.means[i]) / m.scaler.stds[i]
+      IF m.scaler.stds[i] > 0.0 THEN
+        scaledBuf[i] := (pSrc^ - m.scaler.means[i]) / m.scaler.stds[i]
+      ELSE
+        scaledBuf[i] := 0.0
+      END
     END;
     sampleAddr := ADR(scaledBuf)
   ELSE
@@ -160,7 +171,7 @@ BEGIN
   kCount := 0;
   FOR i := 0 TO m.numTrain - 1 DO
     trainRow := ADDRESS(LONGCARD(m.trainData)
-                + LONGCARD(i * m.numFeatures * TSIZE(LONGREAL)));
+                + LONGCARD(i) * LONGCARD(m.numFeatures) * LONGCARD(TSIZE(LONGREAL)));
     dist := Distance(m, sampleAddr, trainRow);
 
     IF kCount < m.k THEN
@@ -241,9 +252,10 @@ VAR
   row: ADDRESS;
   pPred: IntPtr;
 BEGIN
+  IF (numSamples = 0) OR (m.numTrain = 0) OR (m.trainData = NIL) THEN RETURN END;
   FOR i := 0 TO numSamples - 1 DO
     row := ADDRESS(LONGCARD(data)
-           + LONGCARD(i * m.numFeatures * TSIZE(LONGREAL)));
+           + LONGCARD(i) * LONGCARD(m.numFeatures) * LONGCARD(TSIZE(LONGREAL)));
     pPred := ElemI(predictions, i);
     pPred^ := Predict(m, row)
   END
@@ -372,6 +384,9 @@ BEGIN
   END;
 
   (* Header *)
+  (* Free any existing owned buffers before loading *)
+  FreeModel(m);
+
   IF NOT ReadCard(f, m.numTrain) THEN dummy := m2sys_fclose(f); RETURN END;
   IF NOT ReadCard(f, m.numFeatures) THEN dummy := m2sys_fclose(f); RETURN END;
   IF NOT ReadCard(f, m.numClasses) THEN dummy := m2sys_fclose(f); RETURN END;
@@ -379,6 +394,12 @@ BEGIN
   IF NOT ReadCard(f, metricVal) THEN dummy := m2sys_fclose(f); RETURN END;
   IF NOT ReadCard(f, weightedVal) THEN dummy := m2sys_fclose(f); RETURN END;
   IF NOT ReadCard(f, scalerVal) THEN dummy := m2sys_fclose(f); RETURN END;
+
+  (* Clamp loaded dimensions to local array limits *)
+  IF m.numFeatures > 128 THEN m.numFeatures := 128 END;
+  IF m.numClasses > MaxClasses THEN m.numClasses := MaxClasses END;
+  IF m.k > MaxK THEN m.k := MaxK END;
+  IF m.k = 0 THEN m.k := 1 END;
 
   CASE metricVal OF
     0: m.metric := Euclidean |
@@ -406,7 +427,7 @@ BEGIN
   ALLOCATE(m.trainData, dataBytes);
   n := m2sys_fread_bytes(f, m.trainData, INTEGER(dataBytes));
   IF n # INTEGER(dataBytes) THEN
-    DEALLOCATE(m.trainData, 0);
+    DEALLOCATE(m.trainData, dataBytes);
     m.trainData := NIL;
     dummy := m2sys_fclose(f);
     RETURN
@@ -417,8 +438,8 @@ BEGIN
   ALLOCATE(m.trainLabels, labelBytes);
   n := m2sys_fread_bytes(f, m.trainLabels, INTEGER(labelBytes));
   IF n # INTEGER(labelBytes) THEN
-    DEALLOCATE(m.trainData, 0);
-    DEALLOCATE(m.trainLabels, 0);
+    DEALLOCATE(m.trainData, dataBytes);
+    DEALLOCATE(m.trainLabels, labelBytes);
     m.trainData := NIL;
     m.trainLabels := NIL;
     dummy := m2sys_fclose(f);
@@ -432,11 +453,11 @@ END LoadModel;
 PROCEDURE FreeModel(VAR m: Model);
 BEGIN
   IF m.trainData # NIL THEN
-    DEALLOCATE(m.trainData, 0);
+    DEALLOCATE(m.trainData, m.numTrain * m.numFeatures * TSIZE(LONGREAL));
     m.trainData := NIL
   END;
   IF m.trainLabels # NIL THEN
-    DEALLOCATE(m.trainLabels, 0);
+    DEALLOCATE(m.trainLabels, m.numTrain * TSIZE(INTEGER));
     m.trainLabels := NIL
   END;
   m.numTrain := 0

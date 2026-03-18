@@ -74,7 +74,7 @@ BEGIN
           shortFeats, numShortFrames, ok);
 
   IF NOT ok THEN
-    FreeSignal(signal);
+    FreeSignal(signal, numSamples);
     RETURN
   END;
 
@@ -86,8 +86,8 @@ BEGIN
                    midFeats, numMidFrames, ok);
 
   IF NOT ok THEN
-    FreeFeatures(shortFeats);
-    FreeSignal(signal);
+    FreeFeatures(shortFeats, numShortFrames);
+    FreeSignal(signal, numSamples);
     RETURN
   END;
 
@@ -103,9 +103,9 @@ BEGIN
     vec[f] := sum / LFLOAT(numMidFrames)
   END;
 
-  MidFeats.FreeMidFeatures(midFeats);
-  FreeFeatures(shortFeats);
-  FreeSignal(signal);
+  MidFeats.FreeMidFeatures(midFeats, numMidFrames, NumFeatures);
+  FreeFeatures(shortFeats, numShortFrames);
+  FreeSignal(signal, numSamples);
   ok := TRUE
 END ExtractFileVector;
 

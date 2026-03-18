@@ -28,15 +28,15 @@ TYPE
     numFeatures: CARDINAL;
 
     (* Log initial state probabilities: logPi[s] *)
-    logPi: ARRAY [0..31] OF LONGREAL;
+    logPi: ARRAY [0..MaxStates-1] OF LONGREAL;
 
     (* Log transition matrix: logA[from][to] *)
-    logA: ARRAY [0..31] OF ARRAY [0..31] OF LONGREAL;
+    logA: ARRAY [0..MaxStates-1] OF ARRAY [0..MaxStates-1] OF LONGREAL;
 
     (* Per-state Gaussian parameters (diagonal covariance):
        means[s][f] and vars[s][f] *)
-    means: ARRAY [0..31] OF ARRAY [0..127] OF LONGREAL;
-    vars:  ARRAY [0..31] OF ARRAY [0..127] OF LONGREAL;
+    means: ARRAY [0..MaxStates-1] OF ARRAY [0..MaxFeatures-1] OF LONGREAL;
+    vars:  ARRAY [0..MaxStates-1] OF ARRAY [0..MaxFeatures-1] OF LONGREAL;
 
     trained: BOOLEAN;
   END;

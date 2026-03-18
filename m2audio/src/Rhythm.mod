@@ -11,7 +11,7 @@ TYPE
 
 PROCEDURE Elem(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END Elem;
 
 (* ── TempoStability ────────────────────────────────── *)
@@ -132,8 +132,8 @@ BEGIN
     pF^ := fVal
   END;
 
-  DEALLOCATE(complexBuf, 0);
-  DEALLOCATE(prevSpec, 0);
+  DEALLOCATE(complexBuf, 2 * fftSize * TSIZE(LONGREAL));
+  DEALLOCATE(prevSpec, fftHalf * TSIZE(LONGREAL));
 
   (* Mean spectral flux *)
   meanFlux := 0.0;
@@ -144,7 +144,7 @@ BEGIN
   meanFlux := meanFlux / LFLOAT(numFrames);
 
   IF meanFlux < 1.0D-20 THEN
-    DEALLOCATE(flux, 0);
+    DEALLOCATE(flux, numFrames * TSIZE(LONGREAL));
     RETURN 0.0
   END;
 
@@ -156,7 +156,7 @@ BEGIN
   IF minLag < 1 THEN minLag := 1 END;
   IF maxLag >= numFrames THEN maxLag := numFrames - 1 END;
   IF minLag >= maxLag THEN
-    DEALLOCATE(flux, 0);
+    DEALLOCATE(flux, numFrames * TSIZE(LONGREAL));
     RETURN 0.0
   END;
 
@@ -174,7 +174,7 @@ BEGIN
     END
   END;
 
-  DEALLOCATE(flux, 0);
+  DEALLOCATE(flux, numFrames * TSIZE(LONGREAL));
 
   (* Beat strength = peak autocorrelation / mean flux squared *)
   IF meanFlux * meanFlux < 1.0D-20 THEN RETURN 0.0 END;

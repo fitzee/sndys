@@ -19,12 +19,12 @@ TYPE
 
 PROCEDURE ElemR(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END ElemR;
 
 PROCEDURE ElemI(base: ADDRESS; i: CARDINAL): IntPtr;
 BEGIN
-  RETURN IntPtr(LONGCARD(base) + LONGCARD(i * TSIZE(INTEGER)))
+  RETURN IntPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(INTEGER)))
 END ElemI;
 
 (* ── Silence removal ────────────────────────────────── *)
@@ -153,7 +153,7 @@ BEGIN
 
   FOR i := 0 TO numFrames - 1 DO
     frameRow := ADDRESS(LONGCARD(featureMatrix)
-                + LONGCARD(i * NumFeatures * TSIZE(LONGREAL)));
+                + LONGCARD(i) * LONGCARD(NumFeatures) * LONGCARD(TSIZE(LONGREAL)));
     pLabel := ElemI(rawLabels, i);
     pLabel^ := Predict(model, frameRow)
   END;
@@ -211,11 +211,11 @@ BEGIN
   END;
 
   (* Cleanup *)
-  DEALLOCATE(rawLabels, 0);
+  DEALLOCATE(rawLabels, numFrames * TSIZE(INTEGER));
   IF smoothedLabels # NIL THEN
-    DEALLOCATE(smoothedLabels, 0)
+    DEALLOCATE(smoothedLabels, numFrames * TSIZE(INTEGER))
   END;
-  FreeFeatures(featureMatrix)
+  FreeFeatures(featureMatrix, numFrames)
 END SegmentSupervised;
 
 (* ── Speaker diarization via K-Means ──────────────── *)
@@ -306,7 +306,7 @@ BEGIN
   END;
 
   FreeResult(result);
-  FreeFeatures(featureMatrix)
+  FreeFeatures(featureMatrix, numFrames)
 END Diarize;
 
 (* ── Moving average label smoothing ────────────────── *)
@@ -365,7 +365,7 @@ BEGIN
     pL^ := pS^
   END;
 
-  DEALLOCATE(smoothed, 0)
+  DEALLOCATE(smoothed, numFrames * TSIZE(INTEGER))
 END SmoothLabels;
 
 END Segment.

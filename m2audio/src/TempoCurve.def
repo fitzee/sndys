@@ -15,6 +15,7 @@ PROCEDURE ComputeTempoCurve(signal: ADDRESS;
                              VAR times: ADDRESS;
                              VAR numPoints: CARDINAL);
 
-PROCEDURE FreeTempoCurve(VAR bpms: ADDRESS; VAR times: ADDRESS);
+PROCEDURE FreeTempoCurve(VAR bpms: ADDRESS; VAR times: ADDRESS;
+                         numPoints: CARDINAL);
 
 END TempoCurve.

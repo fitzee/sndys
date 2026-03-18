@@ -14,7 +14,7 @@ TYPE
 
 PROCEDURE Elem(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END Elem;
 
 PROCEDURE ComputeTempoCurve(signal: ADDRESS;
@@ -36,6 +36,7 @@ BEGIN
   times := NIL;
   numPoints := 0;
 
+  IF (windowSec <= 0.0) OR (hopSec <= 0.0) THEN RETURN END;
   winSamp := TRUNC(windowSec * LFLOAT(sampleRate));
   hopSamp := TRUNC(hopSec * LFLOAT(sampleRate));
   IF (winSamp = 0) OR (hopSamp = 0) OR (numSamples < winSamp) THEN RETURN END;
@@ -53,7 +54,7 @@ BEGIN
     segLen := endSamp - startSamp;
 
     segAddr := ADDRESS(LONGCARD(signal)
-               + LONGCARD(startSamp * TSIZE(LONGREAL)));
+               + LONGCARD(startSamp) * LONGCARD(TSIZE(LONGREAL)));
 
     ExtractFast(segAddr, segLen, sampleRate, WinSize, WinStep,
                 feats, numFrames, ok);
@@ -65,19 +66,23 @@ BEGIN
     IF ok AND (numFrames > 4) THEN
       BeatExtract(feats, numFrames, NumFeatures, WinStep, bpm, ratio);
       pB^ := bpm;
-      FreeFeatures(feats)
+      FreeFeatures(feats, numFrames)
     ELSE
-      pB^ := 0.0
+      pB^ := 0.0;
+      IF ok THEN FreeFeatures(feats, numFrames) END
     END
   END;
 
   numPoints := totalPoints
 END ComputeTempoCurve;
 
-PROCEDURE FreeTempoCurve(VAR bpms: ADDRESS; VAR times: ADDRESS);
+PROCEDURE FreeTempoCurve(VAR bpms: ADDRESS; VAR times: ADDRESS;
+                         numPoints: CARDINAL);
+VAR sz: CARDINAL;
 BEGIN
-  IF bpms # NIL THEN DEALLOCATE(bpms, 0); bpms := NIL END;
-  IF times # NIL THEN DEALLOCATE(times, 0); times := NIL END
+  sz := numPoints * TSIZE(LONGREAL);
+  IF bpms # NIL THEN DEALLOCATE(bpms, sz); bpms := NIL END;
+  IF times # NIL THEN DEALLOCATE(times, sz); times := NIL END
 END FreeTempoCurve;
 
 END TempoCurve.

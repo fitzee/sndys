@@ -69,7 +69,8 @@ PROCEDURE GenerateClick(bpm, durationSec: LONGREAL;
                         sampleRate: CARDINAL;
                         VAR output: ADDRESS; VAR outSamples: CARDINAL);
 
-(* FreeProc — deallocate output from processing functions. *)
-PROCEDURE FreeProc(VAR output: ADDRESS);
+(* FreeProc — deallocate output from processing functions.
+   numSamples must match the outSamples value from the generating function. *)
+PROCEDURE FreeProc(VAR output: ADDRESS; numSamples: CARDINAL);
 
 END AudioProc.

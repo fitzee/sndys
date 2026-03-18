@@ -45,8 +45,9 @@ PROCEDURE ExtractFast(signal: ADDRESS; numSamples, sampleRate: CARDINAL;
                       VAR featureMatrix: ADDRESS; VAR numFrames: CARDINAL;
                       VAR ok: BOOLEAN);
 
-(* FreeFeatures -- deallocate the feature matrix from Extract. *)
-PROCEDURE FreeFeatures(VAR featureMatrix: ADDRESS);
+(* FreeFeatures -- deallocate the feature matrix from Extract.
+   numFrames must match the value returned by Extract/ExtractFast. *)
+PROCEDURE FreeFeatures(VAR featureMatrix: ADDRESS; numFrames: CARDINAL);
 
 (* FeatureName -- get the human-readable name of feature at index idx.
    Writes name into the provided buffer. *)

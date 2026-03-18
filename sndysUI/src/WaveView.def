@@ -1,0 +1,43 @@
+DEFINITION MODULE WaveView;
+(* Waveform rendering and selection for sndysUI.
+   Draws a signal as min/max amplitude bars per pixel column.
+   Supports click-drag selection highlighting. *)
+
+FROM Gfx IMPORT Renderer;
+FROM SYSTEM IMPORT ADDRESS;
+
+(* Draw waveform within the given rectangle.
+   signal is numSamples LONGREALs.
+   selStart/selEnd define the selection range (in samples).
+   If selStart = selEnd, no selection is drawn. *)
+PROCEDURE Draw(ren: Renderer;
+               x, y, w, h: INTEGER;
+               signal: ADDRESS; numSamples: CARDINAL;
+               selStart, selEnd: CARDINAL);
+
+(* Convert a pixel x-coordinate within the waveform rect to a sample index *)
+PROCEDURE PixelToSample(px, rectX, rectW: INTEGER;
+                        numSamples: CARDINAL): CARDINAL;
+
+(* Draw a spectrogram heatmap within the given rectangle.
+   data is numFrames x numBins LONGREALs (row-major). *)
+PROCEDURE DrawSpectrogram(ren: Renderer;
+                           x, y, w, h: INTEGER;
+                           data: ADDRESS;
+                           numFrames, numBins: CARDINAL);
+
+(* Draw a chromagram within the given rectangle.
+   data is numFrames x 12 LONGREALs (row-major). *)
+PROCEDURE DrawChromagram(ren: Renderer;
+                          x, y, w, h: INTEGER;
+                          data: ADDRESS;
+                          numFrames: CARDINAL);
+
+(* Draw pitch contour within the given rectangle.
+   pitches is numFrames LONGREALs (0 = unvoiced). *)
+PROCEDURE DrawPitchContour(ren: Renderer;
+                            x, y, w, h: INTEGER;
+                            pitches: ADDRESS;
+                            numFrames: CARDINAL);
+
+END WaveView.

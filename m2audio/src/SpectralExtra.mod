@@ -9,7 +9,7 @@ TYPE
 
 PROCEDURE Elem(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END Elem;
 
 (* ── SpectralFlatness ──────────────────────────────── *)

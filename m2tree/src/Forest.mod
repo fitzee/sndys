@@ -14,7 +14,7 @@ PROCEDURE GetCard(base: ADDRESS; idx: CARDINAL): CARDINAL;
 VAR
   p: CardPtr;
 BEGIN
-  p := CardPtr(LONGCARD(base) + LONGCARD(idx * TSIZE(CARDINAL)));
+  p := CardPtr(LONGCARD(base) + LONGCARD(idx) * LONGCARD(TSIZE(CARDINAL)));
   RETURN p^
 END GetCard;
 
@@ -22,7 +22,7 @@ PROCEDURE SetCard(base: ADDRESS; idx: CARDINAL; val: CARDINAL);
 VAR
   p: CardPtr;
 BEGIN
-  p := CardPtr(LONGCARD(base) + LONGCARD(idx * TSIZE(CARDINAL)));
+  p := CardPtr(LONGCARD(base) + LONGCARD(idx) * LONGCARD(TSIZE(CARDINAL)));
   p^ := val
 END SetCard;
 
@@ -116,16 +116,31 @@ BEGIN
       END
     END;
 
-    (* Select random feature subset *)
-    FOR fi := 0 TO numFeatures - 1 DO
-      selected[fi] := FALSE
+    (* Select random feature subset — clamp to array size *)
+    IF numFeatures > 256 THEN
+      FOR fi := 0 TO 255 DO
+        selected[fi] := FALSE
+      END
+    ELSE
+      FOR fi := 0 TO numFeatures - 1 DO
+        selected[fi] := FALSE
+      END
     END;
     count := 0;
+    IF numFeatures = 0 THEN
+      numSubFeatures := 0
+    END;
     WHILE count < numSubFeatures DO
       seed := LCGNext(seed);
       pick := seed MOD numFeatures;
-      IF NOT selected[pick] THEN
-        selected[pick] := TRUE;
+      IF pick <= 255 THEN
+        IF NOT selected[pick] THEN
+          selected[pick] := TRUE;
+          SetCard(featureMask, count, pick);
+          INC(count)
+        END
+      ELSE
+        (* Feature index exceeds tracking array; accept unconditionally *)
         SetCard(featureMask, count, pick);
         INC(count)
       END

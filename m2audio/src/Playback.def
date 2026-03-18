@@ -1,0 +1,144 @@
+DEFINITION MODULE Playback;
+(* SDL2 queued audio playback for mono/stereo PCM output.
+
+   Provides a minimal, explicit API for playing audio through SDL2's
+   queued output model.  Callers provide raw PCM sample data which is
+   copied into SDL's internal queue.  Playback proceeds asynchronously;
+   the queue drains as the audio device consumes samples.
+
+   Playback model:
+   - Call InitAudio to initialize the SDL2 audio subsystem.
+   - Call OpenDevice to open an output device with desired format.
+   - Call ResumeDevice to start playback (devices open paused).
+   - Call QueueSamples to push LONGREAL sample data into the queue.
+     The module converts to the device's native format internally.
+   - Call GetQueuedBytes to monitor how much data remains.
+   - Call PauseDevice / ResumeDevice to control playback.
+   - Call ClearQueued to discard pending audio.
+   - Call CloseDevice and QuitAudio when done.
+
+   Ownership:
+   - Sample data passed to QueueSamples is copied by SDL.
+     The caller retains ownership and may free it immediately.
+   - The module manages a small internal conversion buffer.
+     It is freed on CloseDevice or QuitAudio.
+
+   Limitations:
+   - Queued output only; no callback-based streaming.
+   - No mixing, resampling, or effects.
+   - One device at a time (global obtained-spec state).
+   - The conversion buffer limits a single QueueSamples call
+     to MaxQueueFrames frames (1048576 = ~22s at 48kHz). *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+CONST
+  (* Audio sample formats (SDL2 constants) *)
+  FormatS16  = 32784;   (* 0x8010: signed 16-bit little-endian *)
+  FormatF32  = 33056;   (* 0x8120: 32-bit float little-endian *)
+
+  MaxQueueFrames = 1048576;  (* max frames per QueueSamples call *)
+
+TYPE
+  (* Audio device identifier.  0 = invalid / not open. *)
+  DeviceID = CARDINAL;
+
+  (* Describes the audio format obtained from SDL after opening a device. *)
+  AudioSpec = RECORD
+    freq:      CARDINAL;  (* sample rate in Hz, e.g. 48000 *)
+    format:    CARDINAL;  (* sample format, e.g. FormatF32 *)
+    channels:  CARDINAL;  (* 1 = mono, 2 = stereo *)
+    samples:   CARDINAL;  (* buffer size in sample frames *)
+    frameSize: CARDINAL   (* bytes per frame = channels * bytes_per_sample *)
+  END;
+
+(* ── Subsystem lifecycle ─────────────────────────────────────────── *)
+
+(* InitAudio — initialize the SDL2 audio subsystem.
+   Returns TRUE on success, FALSE on failure.
+   Must be called before OpenDevice. *)
+PROCEDURE InitAudio(): BOOLEAN;
+
+(* QuitAudio — shut down the SDL2 audio subsystem.
+   Closes any open device and frees internal buffers. *)
+PROCEDURE QuitAudio();
+
+(* ── Device management ───────────────────────────────────────────── *)
+
+(* OpenDevice — open an audio output device for queued playback.
+   freq: desired sample rate (e.g. 44100, 48000).
+   channels: 1 for mono, 2 for stereo.
+   format: FormatS16 or FormatF32.
+   bufferFrames: SDL audio buffer size in sample frames (e.g. 1024, 2048).
+     Smaller = lower latency, larger = fewer underruns.
+   Returns a DeviceID > 0 on success, 0 on failure.
+   The device opens in paused state; call ResumeDevice to start playback.
+   Call GetObtainedSpec after opening to see the actual device parameters. *)
+PROCEDURE OpenDevice(freq, channels, format, bufferFrames: CARDINAL): DeviceID;
+
+(* CloseDevice — close an open audio device and free internal buffers. *)
+PROCEDURE CloseDevice(dev: DeviceID);
+
+(* GetObtainedSpec — return the actual audio parameters negotiated by SDL.
+   Valid after a successful OpenDevice call. *)
+PROCEDURE GetObtainedSpec(VAR spec: AudioSpec);
+
+(* ── Playback control ────────────────────────────────────────────── *)
+
+(* PauseDevice — pause audio output.  Queued data is preserved. *)
+PROCEDURE PauseDevice(dev: DeviceID);
+
+(* ResumeDevice — resume (unpause) audio output. *)
+PROCEDURE ResumeDevice(dev: DeviceID);
+
+(* ── Queue operations ────────────────────────────────────────────── *)
+
+(* QueueSamples — convert LONGREAL samples and queue for playback.
+   samples: ADDRESS of numFrames * channels LONGREALs.
+   numFrames: number of sample frames (not individual samples).
+   channels: must match the open device's channel count.
+   Samples are clamped to [-1.0, 1.0] and converted to the device format.
+   Returns TRUE on success, FALSE on failure.
+   The caller's buffer is not modified and may be freed immediately. *)
+PROCEDURE QueueSamples(dev: DeviceID; samples: ADDRESS;
+                       numFrames, channels: CARDINAL): BOOLEAN;
+
+(* QueueBytes — queue raw pre-formatted PCM bytes directly.
+   data: ADDRESS of len bytes in the device's native format.
+   len: number of bytes to queue.
+   Returns TRUE on success, FALSE on failure. *)
+PROCEDURE QueueBytes(dev: DeviceID; data: ADDRESS; len: CARDINAL): BOOLEAN;
+
+(* GetQueuedBytes — return the number of bytes still in the queue. *)
+PROCEDURE GetQueuedBytes(dev: DeviceID): CARDINAL;
+
+(* ClearQueued — discard all pending audio in the queue. *)
+PROCEDURE ClearQueued(dev: DeviceID);
+
+(* ── Utilities ───────────────────────────────────────────────────── *)
+
+(* GetLastError — copy SDL's last error message into buf.
+   Returns the length written (0 if no error). *)
+PROCEDURE GetLastError(VAR buf: ARRAY OF CHAR): CARDINAL;
+
+(* Delay — sleep for the given number of milliseconds.
+   Useful for drain-wait loops. *)
+PROCEDURE Delay(ms: CARDINAL);
+
+(* GetTicks — return milliseconds since SDL initialization. *)
+PROCEDURE GetTicks(): CARDINAL;
+
+(* ── Terminal input (for interruptible playback) ─────────────────── *)
+
+(* RawMode — put terminal into non-canonical mode for keypress detection.
+   Disables line buffering and echo.  Call RestoreMode before exiting. *)
+PROCEDURE RawMode();
+
+(* RestoreMode — restore original terminal settings. *)
+PROCEDURE RestoreMode();
+
+(* KeyPressed — non-blocking check: returns TRUE if a key was pressed.
+   Consumes the keypress.  Only works after RawMode. *)
+PROCEDURE KeyPressed(): BOOLEAN;
+
+END Playback.

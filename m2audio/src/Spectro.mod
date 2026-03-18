@@ -11,7 +11,7 @@ TYPE
 
 PROCEDURE Elem(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END Elem;
 
 PROCEDURE ComputeSpectrogram(signal: ADDRESS;
@@ -72,7 +72,7 @@ BEGIN
   END;
 
   numFrames := totalFrames;
-  DEALLOCATE(complexBuf, 0)
+  DEALLOCATE(complexBuf, 2 * fftSize * TSIZE(LONGREAL))
 END ComputeSpectrogram;
 
 PROCEDURE ComputeChromagram(signal: ADDRESS;
@@ -162,13 +162,13 @@ BEGIN
   END;
 
   numFrames := totalFrames;
-  DEALLOCATE(complexBuf, 0)
+  DEALLOCATE(complexBuf, 2 * fftSize * TSIZE(LONGREAL))
 END ComputeChromagram;
 
-PROCEDURE FreeSpectro(VAR output: ADDRESS);
+PROCEDURE FreeSpectro(VAR output: ADDRESS; numElements: CARDINAL);
 BEGIN
   IF output # NIL THEN
-    DEALLOCATE(output, 0);
+    DEALLOCATE(output, numElements * TSIZE(LONGREAL));
     output := NIL
   END
 END FreeSpectro;

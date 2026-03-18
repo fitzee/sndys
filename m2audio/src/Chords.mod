@@ -13,12 +13,12 @@ TYPE
 
 PROCEDURE Elem(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END Elem;
 
 PROCEDURE ChordElem(base: ADDRESS; i: CARDINAL): ChordPtr;
 BEGIN
-  RETURN ChordPtr(LONGCARD(base) + LONGCARD(i * TSIZE(ChordResult)))
+  RETURN ChordPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(ChordResult)))
 END ChordElem;
 
 (* Chord templates: 1 = note present, 0 = absent *)
@@ -244,7 +244,7 @@ BEGIN
   END;
 
   IF count = 0 THEN
-    DEALLOCATE(tmpBuf, 0);
+    DEALLOCATE(tmpBuf, numFrames * TSIZE(ChordResult));
     RETURN
   END;
 
@@ -258,15 +258,15 @@ BEGIN
   END;
 
   numChords := count;
-  DEALLOCATE(tmpBuf, 0)
+  DEALLOCATE(tmpBuf, numFrames * TSIZE(ChordResult))
 END DetectChordSequence;
 
 (* ── FreeChords ────────────────────────────────────── *)
 
-PROCEDURE FreeChords(VAR chords: ADDRESS);
+PROCEDURE FreeChords(VAR chords: ADDRESS; numChords: CARDINAL);
 BEGIN
   IF chords # NIL THEN
-    DEALLOCATE(chords, 0);
+    DEALLOCATE(chords, numChords * TSIZE(ChordResult));
     chords := NIL
   END
 END FreeChords;

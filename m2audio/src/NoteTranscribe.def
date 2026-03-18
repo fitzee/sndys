@@ -32,7 +32,8 @@ PROCEDURE HzToMidi(hz: LONGREAL): INTEGER;
    E.g., 69 -> "A4", 60 -> "C4", 61 -> "C#4". *)
 PROCEDURE MidiToName(midi: INTEGER; VAR name: ARRAY OF CHAR);
 
-(* FreeNotes -- deallocate notes array. *)
-PROCEDURE FreeNotes(VAR notes: ADDRESS);
+(* FreeNotes -- deallocate notes array.
+   numNotes must match the value from Transcribe. *)
+PROCEDURE FreeNotes(VAR notes: ADDRESS; numNotes: CARDINAL);
 
 END NoteTranscribe.

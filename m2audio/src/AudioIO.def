@@ -13,8 +13,9 @@ PROCEDURE ReadAudio(path: ARRAY OF CHAR;
                     VAR sampleRate: CARDINAL;
                     VAR ok: BOOLEAN);
 
-(* FreeSignal -- deallocate the signal array returned by ReadAudio. *)
-PROCEDURE FreeSignal(VAR signal: ADDRESS);
+(* FreeSignal -- deallocate the signal array returned by ReadAudio.
+   numSamples must match the value returned by ReadAudio. *)
+PROCEDURE FreeSignal(VAR signal: ADDRESS; numSamples: CARDINAL);
 
 (* PreEmphasis -- apply pre-emphasis filter to a signal.
    y[n] = x[n] - coeff * x[n-1], typical coeff = 0.97.

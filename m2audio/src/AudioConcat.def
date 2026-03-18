@@ -12,6 +12,6 @@ PROCEDURE Concat(sigA: ADDRESS; numA: CARDINAL;
                  crossfadeSec: LONGREAL;
                  VAR output: ADDRESS; VAR outSamples: CARDINAL);
 
-PROCEDURE FreeConcat(VAR output: ADDRESS);
+PROCEDURE FreeConcat(VAR output: ADDRESS; outSamples: CARDINAL);
 
 END AudioConcat.

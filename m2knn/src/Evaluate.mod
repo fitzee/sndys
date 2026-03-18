@@ -10,12 +10,12 @@ TYPE
 
 PROCEDURE ElemR(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END ElemR;
 
 PROCEDURE ElemI(base: ADDRESS; i: CARDINAL): IntPtr;
 BEGIN
-  RETURN IntPtr(LONGCARD(base) + LONGCARD(i * TSIZE(INTEGER)))
+  RETURN IntPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(INTEGER)))
 END ElemI;
 
 PROCEDURE ComputeConfusion(actual, predicted: ADDRESS;
@@ -26,9 +26,13 @@ VAR
   a, p: INTEGER;
   pa, pp: IntPtr;
 BEGIN
-  cm.numClasses := numClasses;
-  FOR a := 0 TO INTEGER(numClasses) - 1 DO
-    FOR p := 0 TO INTEGER(numClasses) - 1 DO
+  IF numClasses > MaxClasses THEN
+    cm.numClasses := MaxClasses
+  ELSE
+    cm.numClasses := numClasses
+  END;
+  FOR a := 0 TO INTEGER(cm.numClasses) - 1 DO
+    FOR p := 0 TO INTEGER(cm.numClasses) - 1 DO
       cm.cells[a][p] := 0
     END
   END;
@@ -179,9 +183,9 @@ BEGIN
       IF (i < foldStart) OR (i > foldEnd) THEN
         (* Copy feature row *)
         srcRow := ADDRESS(LONGCARD(data)
-                  + LONGCARD(i * numFeatures * TSIZE(LONGREAL)));
+                  + LONGCARD(i) * LONGCARD(numFeatures) * LONGCARD(TSIZE(LONGREAL)));
         dstRow := ADDRESS(LONGCARD(trainData)
-                  + LONGCARD(j * numFeatures * TSIZE(LONGREAL)));
+                  + LONGCARD(j) * LONGCARD(numFeatures) * LONGCARD(TSIZE(LONGREAL)));
         (* Copy numFeatures LONGREALs *)
         FOR c := 0 TO numFeatures - 1 DO
           pSrcR := ElemR(srcRow, c);
@@ -199,9 +203,9 @@ BEGIN
     (* Copy test data (the fold) *)
     FOR i := 0 TO testCount - 1 DO
       srcRow := ADDRESS(LONGCARD(data)
-                + LONGCARD((foldStart + i) * numFeatures * TSIZE(LONGREAL)));
+                + LONGCARD(foldStart + i) * LONGCARD(numFeatures) * LONGCARD(TSIZE(LONGREAL)));
       dstRow := ADDRESS(LONGCARD(testData)
-                + LONGCARD(i * numFeatures * TSIZE(LONGREAL)));
+                + LONGCARD(i) * LONGCARD(numFeatures) * LONGCARD(TSIZE(LONGREAL)));
       FOR c := 0 TO numFeatures - 1 DO
         pSrcR := ElemR(srcRow, c);
         pDstR := ElemR(dstRow, c);
@@ -220,10 +224,14 @@ BEGIN
     IF model.hasScaler THEN
       FOR i := 0 TO testCount - 1 DO
         dstRow := ADDRESS(LONGCARD(testData)
-                  + LONGCARD(i * numFeatures * TSIZE(LONGREAL)));
+                  + LONGCARD(i) * LONGCARD(numFeatures) * LONGCARD(TSIZE(LONGREAL)));
         FOR c := 0 TO numFeatures - 1 DO
           pDstR := ElemR(dstRow, c);
-          pDstR^ := (pDstR^ - model.scaler.means[c]) / model.scaler.stds[c]
+          IF model.scaler.stds[c] > 0.0 THEN
+            pDstR^ := (pDstR^ - model.scaler.means[c]) / model.scaler.stds[c]
+          ELSE
+            pDstR^ := 0.0
+          END
         END
       END
     END;
@@ -232,7 +240,7 @@ BEGIN
     model.hasScaler := FALSE;
     FOR i := 0 TO testCount - 1 DO
       srcRow := ADDRESS(LONGCARD(testData)
-                + LONGCARD(i * numFeatures * TSIZE(LONGREAL)));
+                + LONGCARD(i) * LONGCARD(numFeatures) * LONGCARD(TSIZE(LONGREAL)));
       pDstI := ElemI(predictions, i);
       pDstI^ := Predict(model, srcRow)
     END;
@@ -257,11 +265,11 @@ BEGIN
     END;
 
     (* Free fold arrays *)
-    DEALLOCATE(trainData, 0);
-    DEALLOCATE(trainLabels, 0);
-    DEALLOCATE(testData, 0);
-    DEALLOCATE(testLabels, 0);
-    DEALLOCATE(predictions, 0)
+    DEALLOCATE(trainData, trainBytes);
+    DEALLOCATE(trainLabels, trainLabelBytes);
+    DEALLOCATE(testData, testBytes);
+    DEALLOCATE(testLabels, testLabelBytes);
+    DEALLOCATE(predictions, predBytes)
   END;
 
   (* Average per-class metrics across folds *)

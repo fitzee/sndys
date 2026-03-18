@@ -5,7 +5,6 @@ FROM SYSTEM IMPORT ADDRESS, ADR, TSIZE;
 FROM Storage IMPORT ALLOCATE, DEALLOCATE;
 FROM MathLib IMPORT sin, cos;
 FROM MathUtil IMPORT Pi, TwoPi;
-FROM Strings IMPORT Compare;
 FROM AudioIO IMPORT PreEmphasis;
 FROM ShortFeats IMPORT NumFeatures, Extract, FreeFeatures, FeatureName;
 IMPORT MidFeats;
@@ -48,6 +47,21 @@ PROCEDURE Elem(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
   RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
 END Elem;
+
+PROCEDURE Compare(VAR a, b: ARRAY OF CHAR): INTEGER;
+VAR i: CARDINAL;
+BEGIN
+  i := 0;
+  WHILE (i <= HIGH(a)) AND (i <= HIGH(b)) AND (a[i] # 0C) AND (b[i] # 0C) DO
+    IF a[i] < b[i] THEN RETURN -1
+    ELSIF a[i] > b[i] THEN RETURN 1
+    END;
+    INC(i)
+  END;
+  IF (i <= HIGH(a)) AND (a[i] # 0C) THEN RETURN 1 END;
+  IF (i <= HIGH(b)) AND (b[i] # 0C) THEN RETURN -1 END;
+  RETURN 0
+END Compare;
 
 (* Test 1: PreEmphasis on known signal *)
 PROCEDURE TestPreEmphasis;
@@ -98,7 +112,7 @@ BEGIN
     p := Elem(feats, 0);
     CheckApprox("Test 2: ZCR of alternating signal = 1.0",
                 p^, 1.0);
-    FreeFeatures(feats)
+    FreeFeatures(feats, numFrames)
   ELSE
     Check("Test 2: ZCR alternating (extract failed)", FALSE)
   END
@@ -126,7 +140,7 @@ BEGIN
     p := Elem(feats, 0);
     CheckApprox("Test 3: ZCR of constant signal = 0.0",
                 p^, 0.0);
-    FreeFeatures(feats)
+    FreeFeatures(feats, numFrames)
   ELSE
     Check("Test 3: ZCR constant (extract failed)", FALSE)
   END
@@ -155,7 +169,7 @@ BEGIN
     p := Elem(feats, 1);
     CheckApprox("Test 4: Energy of constant 2.0 signal = 4.0",
                 p^, 4.0);
-    FreeFeatures(feats)
+    FreeFeatures(feats, numFrames)
   ELSE
     Check("Test 4: Energy (extract failed)", FALSE)
   END
@@ -210,7 +224,7 @@ BEGIN
     Check("Test 5c: First frame features are finite", ok)
   END;
 
-  IF feats # NIL THEN FreeFeatures(feats) END;
+  IF feats # NIL THEN FreeFeatures(feats, numFrames) END;
   DEALLOCATE(signal, numSamples * TSIZE(LONGREAL))
 END TestSineDimensionality;
 
@@ -284,7 +298,7 @@ BEGIN
     Check("Test 7c: MidFeats first mean > 0", p^ > 0.0)
   END;
 
-  IF midFeats # NIL THEN MidFeats.FreeMidFeatures(midFeats) END;
+  IF midFeats # NIL THEN MidFeats.FreeMidFeatures(midFeats, numMidFrames, numF) END;
   DEALLOCATE(shortFeats, numShortFrames * numF * TSIZE(LONGREAL))
 END TestMidFeatsDimensionality;
 

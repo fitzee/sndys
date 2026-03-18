@@ -6,7 +6,7 @@ FROM MathLib IMPORT sqrt, ln;
 (* Elem -- return pointer to element at index i from base address *)
 PROCEDURE Elem(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END Elem;
 
 PROCEDURE Mean(data: ADDRESS; n: CARDINAL): LONGREAL;
@@ -149,16 +149,25 @@ END SumSq;
 PROCEDURE Entropy(data: ADDRESS; n: CARDINAL): LONGREAL;
 VAR
   i: CARDINAL;
-  total, h, pi: LONGREAL;
+  total, h, pi, val: LONGREAL;
   p: RealPtr;
 BEGIN
   IF n = 0 THEN RETURN 0.0 END;
-  total := Sum(data, n);
+  (* Compute sum of absolute values for normalization *)
+  total := 0.0;
+  FOR i := 0 TO n - 1 DO
+    p := Elem(data, i);
+    val := p^;
+    IF val < 0.0 THEN val := -val END;
+    total := total + val
+  END;
   IF total = 0.0 THEN RETURN 0.0 END;
   h := 0.0;
   FOR i := 0 TO n - 1 DO
     p := Elem(data, i);
-    pi := p^ / total;
+    pi := p^;
+    IF pi < 0.0 THEN pi := -pi END;
+    pi := pi / total;
     IF pi > 0.0 THEN
       h := h - pi * LFLOAT(ln(FLOAT(pi)))
     END

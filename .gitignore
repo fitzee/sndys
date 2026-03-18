@@ -1,7 +1,13 @@
 # Build artifacts
 .mx/
 *.o
+*.a
 *.dSYM/
+
+# sndysApp generated/build files
+sndysApp/build/
+sndysApp/Bridge/bridge_all.c
+sndysApp/Bridge/sndys_combined.c
 
 # Excluded from repo
 samples/

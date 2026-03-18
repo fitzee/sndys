@@ -1,0 +1,47 @@
+DEFINITION MODULE FOR "C" AxBridge;
+(* Low-level FFI bindings to ax_bridge.c — SDL2 queued audio output.
+   Do not call directly; use the Playback module instead. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+(* Init / Quit *)
+PROCEDURE ax_init(): INTEGER;
+PROCEDURE ax_quit();
+
+(* Device open / close.
+   format: 0x8010 = S16LE, 0x8120 = F32LE.
+   Returns device ID >= 2 on success, 0 on failure. *)
+PROCEDURE ax_open_device(freq, channels, format, samples: INTEGER): CARDINAL;
+PROCEDURE ax_close_device(dev: CARDINAL);
+
+(* Playback control *)
+PROCEDURE ax_pause_device(dev: CARDINAL);
+PROCEDURE ax_resume_device(dev: CARDINAL);
+
+(* Queue operations.
+   ax_queue_audio returns 1 on success, 0 on failure.
+   len is in bytes. *)
+PROCEDURE ax_queue_audio(dev: CARDINAL; data: ADDRESS; len: CARDINAL): INTEGER;
+PROCEDURE ax_get_queued_size(dev: CARDINAL): CARDINAL;
+PROCEDURE ax_clear_queued(dev: CARDINAL);
+
+(* Obtained spec accessors — valid after successful ax_open_device *)
+PROCEDURE ax_obtained_freq(): INTEGER;
+PROCEDURE ax_obtained_format(): INTEGER;
+PROCEDURE ax_obtained_channels(): INTEGER;
+PROCEDURE ax_obtained_samples(): INTEGER;
+PROCEDURE ax_obtained_frame_size(): INTEGER;
+
+(* Error string — returns pointer to SDL's internal error buffer *)
+PROCEDURE ax_get_error(): ADDRESS;
+
+(* Timer *)
+PROCEDURE ax_get_ticks(): CARDINAL;
+PROCEDURE ax_delay(ms: CARDINAL);
+
+(* Terminal raw mode for keypress detection *)
+PROCEDURE ax_terminal_raw();
+PROCEDURE ax_terminal_restore();
+PROCEDURE ax_key_pressed(): INTEGER;
+
+END AxBridge.

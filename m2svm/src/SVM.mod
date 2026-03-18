@@ -18,12 +18,12 @@ CONST
 
 PROCEDURE ElemR(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END ElemR;
 
 PROCEDURE ElemI(base: ADDRESS; i: CARDINAL): IntPtr;
 BEGIN
-  RETURN IntPtr(LONGCARD(base) + LONGCARD(i * TSIZE(INTEGER)))
+  RETURN IntPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(INTEGER)))
 END ElemI;
 
 (* ── Memory helpers ──────────────────────────────────── *)
@@ -66,6 +66,7 @@ END LcgNext;
 PROCEDURE RandIndex(n: CARDINAL; exclude: CARDINAL): CARDINAL;
 VAR j: CARDINAL;
 BEGIN
+  IF n <= 1 THEN RETURN 0 END;
   REPEAT
     j := CARDINAL(LcgNext() MOD LONGCARD(n))
   UNTIL j # exclude;

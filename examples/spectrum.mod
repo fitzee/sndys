@@ -53,7 +53,7 @@ BEGIN
   (* Convert stereo to mono if needed *)
   IF info.numChannels = 2 THEN
     StereoToMono(rawSamples, info.numSamples, mono);
-    FreeWav(rawSamples)
+    FreeWav(rawSamples, info.numSamples * info.numChannels)
   ELSE
     mono := rawSamples
   END;
@@ -137,8 +137,8 @@ BEGIN
   DEALLOCATE(complexBuf, 2 * fftSize * TSIZE(LONGREAL));
   DEALLOCATE(magBuf, fftSize * TSIZE(LONGREAL));
   IF info.numChannels = 2 THEN
-    FreeMono(mono)
+    FreeMono(mono, info.numSamples)
   ELSE
-    FreeWav(mono)
+    FreeWav(mono, info.numSamples)
   END
 END Spectrum.

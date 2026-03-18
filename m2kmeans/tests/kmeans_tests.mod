@@ -108,7 +108,7 @@ BEGIN
   Check("TwoClusters: clusters differ", l0 # l3);
 
   FreeResult(r);
-  DEALLOCATE(data, 0)
+  DEALLOCATE(data, 6 * 2 * TSIZE(LONGREAL))
 END TestTwoClusters;
 
 
@@ -165,7 +165,7 @@ BEGIN
   Check("ThreeClusters: centroid near (0,50)", foundC);
 
   FreeResult(r);
-  DEALLOCATE(data, 0)
+  DEALLOCATE(data, 9 * 2 * TSIZE(LONGREAL))
 END TestThreeClusters;
 
 
@@ -195,7 +195,7 @@ BEGIN
   Check("Silhouette: score > 0.8", score > 0.8);
 
   FreeResult(r);
-  DEALLOCATE(data, 0)
+  DEALLOCATE(data, 6 * 2 * TSIZE(LONGREAL))
 END TestSilhouette;
 
 
@@ -236,9 +236,9 @@ BEGIN
   label_i := Predict(r, sample);
   Check("Predict: new point near cluster B", label_i # l0);
 
-  DEALLOCATE(sample, 0);
+  DEALLOCATE(sample, 2 * TSIZE(LONGREAL));
   FreeResult(r);
-  DEALLOCATE(data, 0)
+  DEALLOCATE(data, 4 * 2 * TSIZE(LONGREAL))
 END TestPredict;
 
 
@@ -264,7 +264,7 @@ BEGIN
   Check("Convergence: iterations < 50", r.iterations < 50);
 
   FreeResult(r);
-  DEALLOCATE(data, 0)
+  DEALLOCATE(data, 4 * 1 * TSIZE(LONGREAL))
 END TestConvergence;
 
 

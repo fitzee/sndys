@@ -1,0 +1,4 @@
+DEFINITION MODULE FOR "C" sndys_bridge;
+(* Dummy definition — the real implementation is sndys_bridge.c.
+   This file exists only so mx can resolve the module name. *)
+END sndys_bridge.

@@ -29,7 +29,8 @@ PROCEDURE ComputeChromagram(signal: ADDRESS;
                              VAR output: ADDRESS;
                              VAR numFrames: CARDINAL);
 
-(* FreeSpectro — deallocate spectrogram or chromagram matrix. *)
-PROCEDURE FreeSpectro(VAR output: ADDRESS);
+(* FreeSpectro — deallocate spectrogram or chromagram matrix.
+   numElements = numFrames * numBins (spectrogram) or numFrames * 12 (chromagram). *)
+PROCEDURE FreeSpectro(VAR output: ADDRESS; numElements: CARDINAL);
 
 END Spectro.

@@ -25,7 +25,7 @@ TYPE
 
 PROCEDURE ElemR(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END ElemR;
 
 (* ── Billauer peak detection ─────────────────────────── *)
@@ -120,6 +120,7 @@ BEGIN
   ratio := 0.0;
 
   IF numFrames < 4 THEN RETURN END;
+  IF winStepSec <= 0.0 THEN RETURN END;
 
   (* Feature indices: ZCR, Energy, SpectCentroid..Rolloff, MFCC1..10 *)
   selected[0]  := 0;   (* ZCR *)

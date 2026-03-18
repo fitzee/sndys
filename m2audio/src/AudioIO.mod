@@ -9,7 +9,7 @@ TYPE
 
 PROCEDURE Elem(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END Elem;
 
 PROCEDURE ReadAudio(path: ARRAY OF CHAR;
@@ -34,12 +34,12 @@ BEGIN
 
   IF info.numChannels = 2 THEN
     StereoToMono(samples, info.numSamples, mono);
-    FreeWav(samples);
+    FreeWav(samples, info.numSamples * info.numChannels);
     signal := mono
   ELSIF info.numChannels = 1 THEN
     signal := samples
   ELSE
-    FreeWav(samples);
+    FreeWav(samples, info.numSamples * info.numChannels);
     ok := FALSE;
     RETURN
   END;
@@ -47,10 +47,10 @@ BEGIN
   ok := TRUE
 END ReadAudio;
 
-PROCEDURE FreeSignal(VAR signal: ADDRESS);
+PROCEDURE FreeSignal(VAR signal: ADDRESS; numSamples: CARDINAL);
 BEGIN
   IF signal # NIL THEN
-    DEALLOCATE(signal, 0);
+    DEALLOCATE(signal, numSamples * TSIZE(LONGREAL));
     signal := NIL
   END
 END FreeSignal;

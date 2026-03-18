@@ -10,7 +10,7 @@ TYPE
 
 PROCEDURE Elem(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END Elem;
 
 (* ── Levinson-Durbin recursion ─────────────────────── *)
@@ -159,7 +159,7 @@ BEGIN
   END;
 
   IF numPeriods < 2 THEN
-    DEALLOCATE(periods, 0);
+    DEALLOCATE(periods, numFrames * TSIZE(LONGREAL));
     RETURN 0.0
   END;
 
@@ -171,7 +171,7 @@ BEGIN
   meanPeriod := sumPeriod / LFLOAT(numPeriods);
 
   IF meanPeriod < 1.0D-20 THEN
-    DEALLOCATE(periods, 0);
+    DEALLOCATE(periods, numFrames * TSIZE(LONGREAL));
     RETURN 0.0
   END;
 
@@ -182,7 +182,7 @@ BEGIN
     sumDiff := sumDiff + FAbs(pCur^ - pPrev^)
   END;
 
-  DEALLOCATE(periods, 0);
+  DEALLOCATE(periods, numFrames * TSIZE(LONGREAL));
   RETURN (sumDiff / LFLOAT(numPeriods - 1)) / meanPeriod
 END ComputeJitter;
 
@@ -212,7 +212,8 @@ BEGIN
   ALLOCATE(amps, numFrames * TSIZE(LONGREAL));
   numAmps := 0;
 
-  FOR i := 0 TO numFrames - 1 DO
+  i := 0;
+  WHILE i < numFrames DO
     p := Elem(pitches, i);
     f0 := p^;
     IF f0 > 0.0 THEN
@@ -221,24 +222,32 @@ BEGIN
       IF cycleSamp = 0 THEN cycleSamp := 1 END;
 
       cycleStart := i * stepSamp;
-      cycleEnd := cycleStart + cycleSamp;
-      IF cycleEnd > numSamples THEN cycleEnd := numSamples END;
+      IF cycleStart >= numSamples THEN
+        INC(i);
+        (* skip — past end of signal *)
+      ELSE
+        cycleEnd := cycleStart + cycleSamp;
+        IF cycleEnd > numSamples THEN cycleEnd := numSamples END;
 
-      maxVal := 0.0;
-      FOR j := cycleStart TO cycleEnd - 1 DO
-        pS := Elem(signal, j);
-        amp := FAbs(pS^);
-        IF amp > maxVal THEN maxVal := amp END
-      END;
+        maxVal := 0.0;
+        FOR j := cycleStart TO cycleEnd - 1 DO
+          pS := Elem(signal, j);
+          amp := FAbs(pS^);
+          IF amp > maxVal THEN maxVal := amp END
+        END;
 
-      pCur := Elem(amps, numAmps);
-      pCur^ := maxVal;
-      INC(numAmps)
+        pCur := Elem(amps, numAmps);
+        pCur^ := maxVal;
+        INC(numAmps);
+        INC(i)
+      END
+    ELSE
+      INC(i)
     END
   END;
 
   IF numAmps < 2 THEN
-    DEALLOCATE(amps, 0);
+    DEALLOCATE(amps, numFrames * TSIZE(LONGREAL));
     RETURN 0.0
   END;
 
@@ -250,7 +259,7 @@ BEGIN
   meanAmp := sumAmp / LFLOAT(numAmps);
 
   IF meanAmp < 1.0D-20 THEN
-    DEALLOCATE(amps, 0);
+    DEALLOCATE(amps, numFrames * TSIZE(LONGREAL));
     RETURN 0.0
   END;
 
@@ -261,7 +270,7 @@ BEGIN
     sumDiff := sumDiff + FAbs(pCur^ - pPrev^)
   END;
 
-  DEALLOCATE(amps, 0);
+  DEALLOCATE(amps, numFrames * TSIZE(LONGREAL));
   RETURN (sumDiff / LFLOAT(numAmps - 1)) / meanAmp
 END ComputeShimmer;
 

@@ -120,7 +120,7 @@ BEGIN
 
   DEALLOCATE(samples, numSamples * TSIZE(LONGREAL));
   IF readSamples # NIL THEN
-    FreeWav(readSamples)
+    FreeWav(readSamples, info.numSamples * info.numChannels)
   END
 END TestRoundtrip16;
 
@@ -155,7 +155,7 @@ BEGIN
 
   DEALLOCATE(samples, numSamples * TSIZE(LONGREAL));
   IF readSamples # NIL THEN
-    FreeWav(readSamples)
+    FreeWav(readSamples, info.numSamples * info.numChannels)
   END
 END TestWavInfo;
 
@@ -218,12 +218,12 @@ BEGIN
   (* Test with varying values *)
   SetElem(stereo, 0, 1.0D0);
   SetElem(stereo, 1, -1.0D0);
-  FreeMono(mono);
+  FreeMono(mono, numFrames);
   StereoToMono(stereo, numFrames, mono);
   val := GetElem(mono, 0);
   CheckApprox("avg(1.0, -1.0) = 0.0", val, 0.0D0, 0.0001D0);
 
-  FreeMono(mono);
+  FreeMono(mono, numFrames);
   DEALLOCATE(stereo, numFrames * 2 * TSIZE(LONGREAL))
 END TestStereoToMono;
 
@@ -285,7 +285,7 @@ BEGIN
 
   DEALLOCATE(samples, numSamples * TSIZE(LONGREAL));
   IF readSamples # NIL THEN
-    FreeWav(readSamples)
+    FreeWav(readSamples, info.numSamples * info.numChannels)
   END
 END TestRoundtrip8;
 
@@ -338,7 +338,7 @@ BEGIN
 
   DEALLOCATE(samples, numFrames * 2 * TSIZE(LONGREAL));
   IF readSamples # NIL THEN
-    FreeWav(readSamples)
+    FreeWav(readSamples, info.numSamples * info.numChannels)
   END
 END TestStereoRoundtrip;
 

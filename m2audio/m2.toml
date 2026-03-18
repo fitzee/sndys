@@ -21,3 +21,10 @@ m2kmeans=path:../m2kmeans
 entry=tests/audio_tests.mod
 
 [cc]
+cflags=-D_THREAD_SAFE
+libs=-lSDL2
+extra-c=src/ax_bridge.c
+
+[cc.feature.MACOS]
+cflags=-I/opt/homebrew/include
+ldflags=-L/opt/homebrew/lib

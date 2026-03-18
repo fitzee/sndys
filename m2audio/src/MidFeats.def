@@ -18,7 +18,9 @@ PROCEDURE Extract(shortFeats: ADDRESS;
                   VAR numMidFrames: CARDINAL;
                   VAR ok: BOOLEAN);
 
-(* FreeMidFeatures -- deallocate the mid-term feature matrix. *)
-PROCEDURE FreeMidFeatures(VAR midFeats: ADDRESS);
+(* FreeMidFeatures -- deallocate the mid-term feature matrix.
+   numMidFrames and numFeatures must match the values from Extract. *)
+PROCEDURE FreeMidFeatures(VAR midFeats: ADDRESS;
+                          numMidFrames, numFeatures: CARDINAL);
 
 END MidFeats.

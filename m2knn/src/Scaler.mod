@@ -8,7 +8,7 @@ TYPE
 
 PROCEDURE Elem(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END Elem;
 
 PROCEDURE Init(VAR sc: ScalerState; nFeatures: CARDINAL);
@@ -19,9 +19,11 @@ BEGIN
   ELSE
     sc.numFeatures := nFeatures
   END;
-  FOR j := 0 TO sc.numFeatures - 1 DO
-    sc.means[j] := 0.0;
-    sc.stds[j] := 1.0
+  IF sc.numFeatures > 0 THEN
+    FOR j := 0 TO sc.numFeatures - 1 DO
+      sc.means[j] := 0.0;
+      sc.stds[j] := 1.0
+    END
   END;
   sc.fitted := FALSE
 END Init;
@@ -73,7 +75,11 @@ BEGIN
   FOR i := 0 TO numSamples - 1 DO
     FOR j := 0 TO nf - 1 DO
       p := Elem(data, i * numFeatures + j);
-      p^ := (p^ - sc.means[j]) / sc.stds[j]
+      IF sc.stds[j] > 0.0 THEN
+        p^ := (p^ - sc.means[j]) / sc.stds[j]
+      ELSE
+        p^ := 0.0
+      END
     END
   END
 END Transform;

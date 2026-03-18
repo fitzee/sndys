@@ -97,7 +97,7 @@ BEGIN
 
   IF NOT ok THEN
     WriteString("Error: feature extraction failed"); WriteLn;
-    FreeSignal(signal);
+    FreeSignal(signal, numSamples);
     HALT
   END;
 
@@ -128,6 +128,6 @@ BEGIN
   END;
 
   (* Cleanup *)
-  FreeFeatures(featureMatrix);
-  FreeSignal(signal)
+  FreeFeatures(featureMatrix, numFrames);
+  FreeSignal(signal, numSamples)
 END Features.

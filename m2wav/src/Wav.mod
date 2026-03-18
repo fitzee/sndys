@@ -144,6 +144,10 @@ BEGIN
         RETURN
       END;
       DEC(extraBytes, CARDINAL(n))
+    END;
+    (* RIFF chunks are padded to even boundaries *)
+    IF chunkSize MOD 2 # 0 THEN
+      n := m2sys_fread_bytes(f, ADR(skipBuf), 1)
     END
   END;
 
@@ -228,6 +232,10 @@ BEGIN
         RETURN
       END;
       DEC(extraBytes, CARDINAL(n))
+    END;
+    (* RIFF chunks are padded to even boundaries *)
+    IF chunkSize MOD 2 # 0 THEN
+      n := m2sys_fread_bytes(f, ADR(skipBuf), 1)
     END
   END;
 
@@ -255,7 +263,7 @@ BEGIN
   IF info.bitsPerSample = 32 THEN
     (* 32-bit signed PCM: 4 bytes little-endian per sample *)
     FOR i := 0 TO totalSamples * info.numChannels - 1 DO
-      addr := LONGCARD(rawBuf) + LONGCARD(i * 4);
+      addr := LONGCARD(rawBuf) + LONGCARD(i) * 4;
       bp := BytePtr(addr);
       lo := ORD(bp^);
       bp := BytePtr(addr + 1);
@@ -279,7 +287,7 @@ BEGIN
   ELSIF info.bitsPerSample = 24 THEN
     (* 24-bit signed PCM: 3 bytes little-endian per sample *)
     FOR i := 0 TO totalSamples * info.numChannels - 1 DO
-      addr := LONGCARD(rawBuf) + LONGCARD(i * 3);
+      addr := LONGCARD(rawBuf) + LONGCARD(i) * 3;
       bp := BytePtr(addr);
       lo := ORD(bp^);
       bp := BytePtr(addr + 1);
@@ -295,7 +303,7 @@ BEGIN
     END
   ELSIF info.bitsPerSample = 16 THEN
     FOR i := 0 TO totalSamples * info.numChannels - 1 DO
-      addr := LONGCARD(rawBuf) + LONGCARD(i * 2);
+      addr := LONGCARD(rawBuf) + LONGCARD(i) * 2;
       bp := BytePtr(addr);
       lo := ORD(bp^);
       bp := BytePtr(addr + 1);
@@ -321,10 +329,10 @@ BEGIN
   ok := TRUE
 END ReadWav;
 
-PROCEDURE FreeWav(VAR samples: ADDRESS);
+PROCEDURE FreeWav(VAR samples: ADDRESS; numElements: CARDINAL);
 BEGIN
   IF samples # NIL THEN
-    DEALLOCATE(samples, 0);
+    DEALLOCATE(samples, numElements * TSIZE(LONGREAL));
     samples := NIL
   END
 END FreeWav;
@@ -336,6 +344,7 @@ VAR
   i: CARDINAL;
   left, right, avg: LONGREAL;
 BEGIN
+  IF numFrames = 0 THEN mono := NIL; RETURN END;
   ALLOCATE(mono, numFrames * TSIZE(LONGREAL));
   FOR i := 0 TO numFrames - 1 DO
     left := GetElem(stereo, i * 2);
@@ -345,10 +354,10 @@ BEGIN
   END
 END StereoToMono;
 
-PROCEDURE FreeMono(VAR mono: ADDRESS);
+PROCEDURE FreeMono(VAR mono: ADDRESS; numSamples: CARDINAL);
 BEGIN
   IF mono # NIL THEN
-    DEALLOCATE(mono, 0);
+    DEALLOCATE(mono, numSamples * TSIZE(LONGREAL));
     mono := NIL
   END
 END FreeMono;
@@ -479,6 +488,10 @@ VAR
 BEGIN
   ok := FALSE;
 
+  IF (bitsPerSample # 8) AND (bitsPerSample # 16) THEN
+    RETURN
+  END;
+
   blockAlign := numChannels * (bitsPerSample DIV 8);
   byteRate := sampleRate * blockAlign;
   totalElems := numSamples * numChannels;
@@ -517,10 +530,10 @@ BEGIN
       ELSE
         uval := CARDINAL(sval)
       END;
-      addr := LONGCARD(rawBuf) + LONGCARD(i * 2);
+      addr := LONGCARD(rawBuf) + LONGCARD(i) * 2;
       bp := BytePtr(addr);
       bp^ := CHR(uval MOD 256);
-      addr := LONGCARD(rawBuf) + LONGCARD(i * 2 + 1);
+      addr := LONGCARD(rawBuf) + LONGCARD(i) * 2 + 1;
       bp := BytePtr(addr);
       bp^ := CHR((uval DIV 256) MOD 256)
     END

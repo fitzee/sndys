@@ -1,0 +1,131 @@
+DEFINITION MODULE AppState;
+(* Global application state for sndysUI.
+   Holds loaded audio, selection range, and cached analysis results. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+FROM AudioStats IMPORT StatsResult;
+FROM Chords IMPORT ChordResult;
+
+CONST
+  MaxPath    = 255;
+  MaxOnsets  = 4096;
+  MaxChords  = 1024;
+  MaxNotes   = 1024;
+  NumFeats   = 34;
+
+TYPE
+  PathBuf = ARRAY [0..MaxPath] OF CHAR;
+
+VAR
+  (* File state *)
+  filePath:    PathBuf;
+  fileLoaded:  BOOLEAN;
+  signal:      ADDRESS;
+  numSamples:  CARDINAL;
+  sampleRate:  CARDINAL;
+
+  (* Selection (in samples) *)
+  selStart:    CARDINAL;
+  selEnd:      CARDINAL;
+  hasSelection: BOOLEAN;
+
+  (* Cached analysis results *)
+  statsValid:  BOOLEAN;
+  stats:       StatsResult;
+
+  keyValid:    BOOLEAN;
+  keyName:     ARRAY [0..31] OF CHAR;
+  keyConf:     LONGREAL;
+
+  bpmValid:    BOOLEAN;
+  bpmValue:    LONGREAL;
+  bpmConf:     LONGREAL;
+
+  beatStrValid: BOOLEAN;
+  beatStrValue: LONGREAL;
+
+  (* Spectrogram *)
+  spectroValid: BOOLEAN;
+  spectroData:  ADDRESS;
+  spectroFrames: CARDINAL;
+  spectroBins:   CARDINAL;
+
+  (* Chromagram *)
+  chromaValid:  BOOLEAN;
+  chromaData:   ADDRESS;
+  chromaFrames: CARDINAL;
+
+  (* Short-term features *)
+  featsValid:   BOOLEAN;
+  featsData:    ADDRESS;
+  featsFrames:  CARDINAL;
+
+  (* Pitch contour *)
+  pitchValid:   BOOLEAN;
+  pitchData:    ADDRESS;
+  pitchTimes:   ADDRESS;
+  pitchFrames:  CARDINAL;
+
+  (* Onsets *)
+  onsetsValid:  BOOLEAN;
+  onsetTimes:   ARRAY [0..MaxOnsets-1] OF LONGREAL;
+  numOnsets:    CARDINAL;
+
+  (* Chords *)
+  chordsValid:  BOOLEAN;
+  chordsData:   ADDRESS;
+  numChords:    CARDINAL;
+
+  (* Notes *)
+  notesValid:   BOOLEAN;
+  notesData:    ADDRESS;
+  numNotes:     CARDINAL;
+
+  (* Harmonic *)
+  harmonicValid: BOOLEAN;
+  harmonicRatio: LONGREAL;
+  harmonicF0:    LONGREAL;
+
+  (* Voice *)
+  voiceValid:   BOOLEAN;
+  voiceF1:      LONGREAL;
+  voiceF2:      LONGREAL;
+  voiceF3:      LONGREAL;
+  voiceJitter:  LONGREAL;
+  voiceShimmer: LONGREAL;
+  voiceHNR:     LONGREAL;
+
+  (* Active tab *)
+  activeTab:    CARDINAL;
+
+  (* Playback state *)
+  isPlaying:    BOOLEAN;
+
+  (* UI state *)
+  needsRedraw:  BOOLEAN;
+  statusMsg:    ARRAY [0..127] OF CHAR;
+
+PROCEDURE Reset;
+PROCEDURE LoadFile(path: ARRAY OF CHAR): BOOLEAN;
+PROCEDURE FreeAll;
+PROCEDURE RunAllAnalyses;
+PROCEDURE RunOverviewAnalyses;
+PROCEDURE RunSpectralAnalyses;
+PROCEDURE RunTempoAnalyses;
+PROCEDURE RunHarmonicAnalyses;
+
+(* Progress callback — set by Main to allow mid-analysis UI updates *)
+TYPE
+  ProgressFn = PROCEDURE(ARRAY OF CHAR): BOOLEAN;
+  (* Called with step description. Returns TRUE to continue, FALSE to cancel. *)
+
+VAR
+  onProgress: ProgressFn;
+
+(* Selection helpers *)
+PROCEDURE SelectionStart(): CARDINAL;
+PROCEDURE SelectionEnd(): CARDINAL;
+PROCEDURE SelectionSamples(): CARDINAL;
+PROCEDURE SelectionSignal(): ADDRESS;
+
+END AppState.

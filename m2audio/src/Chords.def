@@ -28,7 +28,8 @@ PROCEDURE DetectChordSequence(chromagram: ADDRESS;
                                VAR chords: ADDRESS;
                                VAR numChords: CARDINAL);
 
-(* FreeChords -- deallocate chord result array. *)
-PROCEDURE FreeChords(VAR chords: ADDRESS);
+(* FreeChords -- deallocate chord result array.
+   numChords must match the value from DetectChordSequence. *)
+PROCEDURE FreeChords(VAR chords: ADDRESS; numChords: CARDINAL);
 
 END Chords.

@@ -15,7 +15,7 @@ PROCEDURE GetReal(base: ADDRESS; idx: CARDINAL): LONGREAL;
 VAR
   p: RealPtr;
 BEGIN
-  p := RealPtr(LONGCARD(base) + LONGCARD(idx * TSIZE(LONGREAL)));
+  p := RealPtr(LONGCARD(base) + LONGCARD(idx) * LONGCARD(TSIZE(LONGREAL)));
   RETURN p^
 END GetReal;
 
@@ -23,7 +23,7 @@ PROCEDURE SetReal(base: ADDRESS; idx: CARDINAL; val: LONGREAL);
 VAR
   p: RealPtr;
 BEGIN
-  p := RealPtr(LONGCARD(base) + LONGCARD(idx * TSIZE(LONGREAL)));
+  p := RealPtr(LONGCARD(base) + LONGCARD(idx) * LONGCARD(TSIZE(LONGREAL)));
   p^ := val
 END SetReal;
 
@@ -31,7 +31,7 @@ PROCEDURE GetInt(base: ADDRESS; idx: CARDINAL): INTEGER;
 VAR
   p: IntPtr;
 BEGIN
-  p := IntPtr(LONGCARD(base) + LONGCARD(idx * TSIZE(INTEGER)));
+  p := IntPtr(LONGCARD(base) + LONGCARD(idx) * LONGCARD(TSIZE(INTEGER)));
   RETURN p^
 END GetInt;
 
@@ -39,7 +39,7 @@ PROCEDURE SetInt(base: ADDRESS; idx: CARDINAL; val: INTEGER);
 VAR
   p: IntPtr;
 BEGIN
-  p := IntPtr(LONGCARD(base) + LONGCARD(idx * TSIZE(INTEGER)));
+  p := IntPtr(LONGCARD(base) + LONGCARD(idx) * LONGCARD(TSIZE(INTEGER)));
   p^ := val
 END SetInt;
 
@@ -47,7 +47,7 @@ PROCEDURE GetCard(base: ADDRESS; idx: CARDINAL): CARDINAL;
 VAR
   p: CardPtr;
 BEGIN
-  p := CardPtr(LONGCARD(base) + LONGCARD(idx * TSIZE(CARDINAL)));
+  p := CardPtr(LONGCARD(base) + LONGCARD(idx) * LONGCARD(TSIZE(CARDINAL)));
   RETURN p^
 END GetCard;
 
@@ -55,13 +55,13 @@ PROCEDURE SetCard(base: ADDRESS; idx: CARDINAL; val: CARDINAL);
 VAR
   p: CardPtr;
 BEGIN
-  p := CardPtr(LONGCARD(base) + LONGCARD(idx * TSIZE(CARDINAL)));
+  p := CardPtr(LONGCARD(base) + LONGCARD(idx) * LONGCARD(TSIZE(CARDINAL)));
   p^ := val
 END SetCard;
 
 PROCEDURE GetNode(base: ADDRESS; idx: CARDINAL): NodePtr;
 BEGIN
-  RETURN NodePtr(LONGCARD(base) + LONGCARD(idx * TSIZE(TreeNode)))
+  RETURN NodePtr(LONGCARD(base) + LONGCARD(idx) * LONGCARD(TSIZE(TreeNode)))
 END GetNode;
 
 (* ---- Data access: row-major data[sample][feature] ---- *)
@@ -77,6 +77,22 @@ PROCEDURE LCGNext(seed: CARDINAL): CARDINAL;
 BEGIN
   RETURN (seed * 1103515245 + 12345) MOD 2147483648
 END LCGNext;
+
+(* ---- Power of 2 helper ---- *)
+
+PROCEDURE Power2(n: CARDINAL): CARDINAL;
+VAR
+  result, i: CARDINAL;
+BEGIN
+  result := 1;
+  FOR i := 1 TO n DO
+    result := result * 2;
+    IF result > 65536 THEN
+      RETURN 65536
+    END
+  END;
+  RETURN result
+END Power2;
 
 (* ---- Tree init ---- *)
 
@@ -100,24 +116,14 @@ BEGIN
   t.numNodes := 0;
   t.maxNodes := estimatedNodes;
   t.numFeatures := nFeatures;
-  t.numClasses := nClasses;
+  IF nClasses > 32 THEN
+    t.numClasses := 32
+  ELSE
+    t.numClasses := nClasses
+  END;
   t.maxDepth := maxDepth;
   ALLOCATE(t.nodes, estimatedNodes * TSIZE(TreeNode))
 END Init;
-
-PROCEDURE Power2(n: CARDINAL): CARDINAL;
-VAR
-  result, i: CARDINAL;
-BEGIN
-  result := 1;
-  FOR i := 1 TO n DO
-    result := result * 2;
-    IF result > 65536 THEN
-      RETURN 65536
-    END
-  END;
-  RETURN result
-END Power2;
 
 (* ---- Allocate a new node, return its index ---- *)
 

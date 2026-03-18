@@ -141,7 +141,7 @@ BEGIN
 
     WriteLn;
     PrintSegments(segs);
-    FreeSignal(signal)
+    FreeSignal(signal, numSamples)
 
   ELSIF (mode[0] = 'c') AND (mode[1] = 'l') AND (mode[2] = 'a') THEN
     (* Supervised segmentation mode *)
@@ -189,7 +189,7 @@ BEGIN
     WriteLn;
     PrintSegments(segs);
 
-    FreeSignal(signal);
+    FreeSignal(signal, numSamples);
     KNN.FreeModel(m)
 
   ELSE

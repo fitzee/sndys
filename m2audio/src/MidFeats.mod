@@ -9,7 +9,7 @@ TYPE
 
 PROCEDURE Elem(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END Elem;
 
 PROCEDURE Extract(shortFeats: ADDRESS;
@@ -49,25 +49,33 @@ BEGIN
     IF endFrame >= numFrames THEN
       endFrame := numFrames - 1
     END;
-    count := endFrame - startFrame + 1;
+    IF endFrame < startFrame THEN
+      count := 0
+    ELSE
+      count := endFrame - startFrame + 1
+    END;
 
     FOR f := 0 TO numFeatures - 1 DO
       (* Compute mean of feature f over the mid-term window *)
       m := 0.0;
-      FOR i := startFrame TO endFrame DO
-        pSrc := Elem(shortFeats, i * numFeatures + f);
-        m := m + pSrc^
+      IF count > 0 THEN
+        FOR i := startFrame TO endFrame DO
+          pSrc := Elem(shortFeats, i * numFeatures + f);
+          m := m + pSrc^
+        END;
+        m := m / LFLOAT(count)
       END;
-      m := m / LFLOAT(count);
 
       (* Compute std dev of feature f *)
       s := 0.0;
-      FOR i := startFrame TO endFrame DO
-        pSrc := Elem(shortFeats, i * numFeatures + f);
-        diff := pSrc^ - m;
-        s := s + diff * diff
+      IF count > 0 THEN
+        FOR i := startFrame TO endFrame DO
+          pSrc := Elem(shortFeats, i * numFeatures + f);
+          diff := pSrc^ - m;
+          s := s + diff * diff
+        END;
+        s := LFLOAT(sqrt(FLOAT(s / LFLOAT(count))))
       END;
-      s := LFLOAT(sqrt(FLOAT(s / LFLOAT(count))));
 
       (* Store mean *)
       pDst := Elem(midFeats, midIdx * outCols + f);
@@ -83,10 +91,11 @@ BEGIN
   ok := TRUE
 END Extract;
 
-PROCEDURE FreeMidFeatures(VAR midFeats: ADDRESS);
+PROCEDURE FreeMidFeatures(VAR midFeats: ADDRESS;
+                          numMidFrames, numFeatures: CARDINAL);
 BEGIN
   IF midFeats # NIL THEN
-    DEALLOCATE(midFeats, 0);
+    DEALLOCATE(midFeats, numMidFrames * 2 * numFeatures * TSIZE(LONGREAL));
     midFeats := NIL
   END
 END FreeMidFeatures;

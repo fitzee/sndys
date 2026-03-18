@@ -27,12 +27,12 @@ TYPE
 
 PROCEDURE ElemR(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END ElemR;
 
 PROCEDURE ElemI(base: ADDRESS; i: CARDINAL): IntPtr;
 BEGIN
-  RETURN IntPtr(LONGCARD(base) + LONGCARD(i * TSIZE(INTEGER)))
+  RETURN IntPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(INTEGER)))
 END ElemI;
 
 (* ── Feature vector extraction ─────────────────────── *)
@@ -60,7 +60,7 @@ BEGIN
           shortFeats, numShortFrames, featsOk);
 
   IF NOT featsOk THEN
-    FreeSignal(signal);
+    FreeSignal(signal, numSamples);
     RETURN
   END;
 
@@ -72,8 +72,8 @@ BEGIN
                    midFeats, numMidFrames, featsOk);
 
   IF (NOT featsOk) OR (numMidFrames = 0) THEN
-    FreeFeatures(shortFeats);
-    FreeSignal(signal);
+    FreeFeatures(shortFeats, numShortFrames);
+    FreeSignal(signal, numSamples);
     RETURN
   END;
 
@@ -89,9 +89,9 @@ BEGIN
     vec[f] := sum / LFLOAT(numMidFrames)
   END;
 
-  MidFeats.FreeMidFeatures(midFeats);
-  FreeFeatures(shortFeats);
-  FreeSignal(signal);
+  MidFeats.FreeMidFeatures(midFeats, numMidFrames, NumFeatures);
+  FreeFeatures(shortFeats, numShortFrames);
+  FreeSignal(signal, numSamples);
   ok := TRUE
 END ExtractFileVector;
 
@@ -156,18 +156,24 @@ VAR
 BEGIN
   ok := FALSE;
 
+  IF numDirs = 0 THEN RETURN END;
+
   (* First pass: count total WAV files across all dirs *)
   totalFiles := 0;
   FOR d := 0 TO numDirs - 1 DO
     (* Dereference dirs[d] to get the ADDRESS of the path string *)
-    dirAddr := AddrPtr(LONGCARD(dirs) + LONGCARD(d * TSIZE(ADDRESS)))^;
+    dirAddr := AddrPtr(LONGCARD(dirs) + LONGCARD(d) * LONGCARD(TSIZE(ADDRESS)))^;
 
     (* Copy path from the char array at dirAddr *)
-    FOR i := 0 TO 255 DO
+    i := 0;
+    WHILE i <= 255 DO
       bp := CharPtr(LONGCARD(dirAddr) + LONGCARD(i));
       dirPath[i] := bp^;
-      IF bp^ = 0C THEN i := 255 END
+      IF bp^ = 0C THEN i := 256
+      ELSE INC(i)
+      END
     END;
+    IF i = 256 THEN (* terminated *) ELSE dirPath[255] := 0C END;
 
     listLen := m2sys_list_dir(ADR(dirPath), ADR(dirBuf), DirBufSize);
     IF listLen > 0 THEN
@@ -207,12 +213,16 @@ BEGIN
   (* Second pass: extract features *)
   fileCount := 0;
   FOR d := 0 TO numDirs - 1 DO
-    dirAddr := AddrPtr(LONGCARD(dirs) + LONGCARD(d * TSIZE(ADDRESS)))^;
-    FOR i := 0 TO 255 DO
+    dirAddr := AddrPtr(LONGCARD(dirs) + LONGCARD(d) * LONGCARD(TSIZE(ADDRESS)))^;
+    i := 0;
+    WHILE i <= 255 DO
       bp := CharPtr(LONGCARD(dirAddr) + LONGCARD(i));
       dirPath[i] := bp^;
-      IF bp^ = 0C THEN i := 255 END
+      IF bp^ = 0C THEN i := 256
+      ELSE INC(i)
+      END
     END;
+    IF i = 256 THEN (* terminated *) ELSE dirPath[255] := 0C END;
 
     WriteString("  Class "); WriteCard(d, 0);
     WriteString(": "); WriteString(dirPath); WriteLn;
@@ -257,8 +267,8 @@ BEGIN
 
   IF fileCount = 0 THEN
     WriteString("  No features extracted"); WriteLn;
-    DEALLOCATE(allData, 0);
-    DEALLOCATE(allLabels, 0);
+    DEALLOCATE(allData, totalFiles * VectorLen * TSIZE(LONGREAL));
+    DEALLOCATE(allLabels, totalFiles * TSIZE(INTEGER));
     RETURN
   END;
 

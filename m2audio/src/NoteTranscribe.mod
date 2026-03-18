@@ -13,12 +13,12 @@ TYPE
 
 PROCEDURE Elem(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END Elem;
 
 PROCEDURE NoteElem(base: ADDRESS; i: CARDINAL): NotePtr;
 BEGIN
-  RETURN NotePtr(LONGCARD(base) + LONGCARD(i * TSIZE(NoteEvent)))
+  RETURN NotePtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(NoteEvent)))
 END NoteElem;
 
 (* ── HzToMidi ──────────────────────────────────────── *)
@@ -131,7 +131,7 @@ BEGIN
   notes := NIL;
   numNotes := 0;
 
-  IF numSamples < 2 THEN RETURN END;
+  IF (numSamples < 2) OR (sampleRate = 0) THEN RETURN END;
 
   totalSec := LFLOAT(numSamples) / LFLOAT(sampleRate);
 
@@ -200,15 +200,15 @@ BEGIN
     END
   END;
 
-  FreePitch(pitches, times)
+  FreePitch(pitches, times, numPitchFrames)
 END Transcribe;
 
 (* ── FreeNotes ─────────────────────────────────────── *)
 
-PROCEDURE FreeNotes(VAR notes: ADDRESS);
+PROCEDURE FreeNotes(VAR notes: ADDRESS; numNotes: CARDINAL);
 BEGIN
   IF notes # NIL THEN
-    DEALLOCATE(notes, 0);
+    DEALLOCATE(notes, numNotes * TSIZE(NoteEvent));
     notes := NIL
   END
 END FreeNotes;

@@ -1,6 +1,6 @@
 # sndys — Audio Analysis Toolkit
 
-43 commands in a 156 KB binary. Pure Modula-2, built with [mx](https://github.com/fitzee/mx).
+44 commands in a single binary. Pure Modula-2, built with [mx](https://github.com/fitzee/mx).
 
 ## Build
 
@@ -52,6 +52,9 @@ Processing:
   lowpass     <in> <out> <freq_hz>            Butterworth low-pass
   highpass    <in> <out> <freq_hz>            Butterworth high-pass
   bandpass    <in> <out> <lo_hz> <hi_hz>      Butterworth band-pass
+
+Playback:
+  play        <file.wav>                      Play audio (key to stop)
 
 Generation:
   generate    sine  <out> <freq> <dur> [amp]  Sine tone

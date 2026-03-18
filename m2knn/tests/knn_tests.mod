@@ -391,8 +391,8 @@ BEGIN
   Check("xval: accuracy >= 0.9", acc >= 0.9);
   Check("xval: macroF1 >= 0.8", met.macroF1 >= 0.8);
 
-  DEALLOCATE(data, 0);
-  DEALLOCATE(labels, 0)
+  DEALLOCATE(data, 20 * 2 * TSIZE(LONGREAL));
+  DEALLOCATE(labels, 20 * TSIZE(INTEGER))
 END Test12;
 
 BEGIN

@@ -14,21 +14,21 @@ TYPE
   RealPtr = POINTER TO LONGREAL;
 
 CONST
-  Pi = 3.14159265358979323846;
+  Pi = 3.14159265358979323846D0;
 
 (* ── Helper: element access via pointer arithmetic ──── *)
 
 PROCEDURE Get(base: ADDRESS; idx: CARDINAL): LONGREAL;
 VAR p: RealPtr;
 BEGIN
-  p := RealPtr(LONGCARD(base) + LONGCARD(idx * TSIZE(LONGREAL)));
+  p := RealPtr(LONGCARD(base) + LONGCARD(idx) * LONGCARD(TSIZE(LONGREAL)));
   RETURN p^
 END Get;
 
 PROCEDURE Put(base: ADDRESS; idx: CARDINAL; val: LONGREAL);
 VAR p: RealPtr;
 BEGIN
-  p := RealPtr(LONGCARD(base) + LONGCARD(idx * TSIZE(LONGREAL)));
+  p := RealPtr(LONGCARD(base) + LONGCARD(idx) * LONGCARD(TSIZE(LONGREAL)));
   p^ := val
 END Put;
 
@@ -60,21 +60,35 @@ BEGIN
   END
 END BitReverse;
 
+(* ── Power-of-two check ────────────────────────────── *)
+
+PROCEDURE IsPowerOfTwo(n: CARDINAL): BOOLEAN;
+VAR v: CARDINAL;
+BEGIN
+  IF n = 0 THEN RETURN FALSE END;
+  v := n;
+  WHILE (v > 1) AND (v MOD 2 = 0) DO
+    v := v DIV 2
+  END;
+  RETURN v = 1
+END IsPowerOfTwo;
+
 (* ── Forward FFT ───────────────────────────────────── *)
 
 PROCEDURE Forward(data: ADDRESS; n: CARDINAL);
 VAR size, halfSize, k, idx1, idx2: CARDINAL;
     angle, wr, wi, tRe, tIm: LONGREAL;
-    re1, im1: LONGREAL;
+    re1, im1, re2, im2: LONGREAL;
 BEGIN
   IF n <= 1 THEN RETURN END;
+  IF NOT IsPowerOfTwo(n) THEN RETURN END;
 
   BitReverse(data, n);
 
   size := 2;
   WHILE size <= n DO
     halfSize := size DIV 2;
-    angle := -2.0 * Pi / LFLOAT(size);
+    angle := -2.0D0 * Pi / LFLOAT(size);
     k := 0;
     WHILE k < halfSize DO
       wr := LFLOAT(cos(FLOAT(angle * LFLOAT(k))));
@@ -82,9 +96,11 @@ BEGIN
       idx1 := k;
       WHILE idx1 < n DO
         idx2 := idx1 + halfSize;
-        (* butterfly *)
-        tRe := wr * Get(data, 2 * idx2) - wi * Get(data, 2 * idx2 + 1);
-        tIm := wr * Get(data, 2 * idx2 + 1) + wi * Get(data, 2 * idx2);
+        (* butterfly — load both elements once *)
+        re2 := Get(data, 2 * idx2);
+        im2 := Get(data, 2 * idx2 + 1);
+        tRe := wr * re2 - wi * im2;
+        tIm := wr * im2 + wi * re2;
         re1 := Get(data, 2 * idx1);
         im1 := Get(data, 2 * idx1 + 1);
         Put(data, 2 * idx1, re1 + tRe);
@@ -116,6 +132,7 @@ VAR i: CARDINAL;
     scale: LONGREAL;
 BEGIN
   IF n <= 1 THEN RETURN END;
+  IF NOT IsPowerOfTwo(n) THEN RETURN END;
   Conjugate(data, n);
   Forward(data, n);
   Conjugate(data, n);
@@ -160,6 +177,9 @@ BEGIN
 END PowerSpectrum;
 
 (* ── Normalized power spectrum ─────────────────────── *)
+(* power[i] = (re[i]^2 + im[i]^2) / n.
+   Dividing by n (not n^2) gives the one-sided energy-per-bin
+   scaling used by pyAudioAnalysis for feature extraction. *)
 
 PROCEDURE NormalizedPowerSpectrum(data: ADDRESS; n: CARDINAL;
                                   power: ADDRESS);

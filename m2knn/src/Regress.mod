@@ -13,7 +13,7 @@ TYPE
 
 PROCEDURE ElemR(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END ElemR;
 
 PROCEDURE EuclideanDist(a, b: ADDRESS; n: CARDINAL): LONGREAL;
@@ -35,12 +35,13 @@ BEGIN
   m.trainData := NIL;
   m.trainTargets := NIL;
   m.numTrain := 0;
-  m.numFeatures := numFeatures;
+  IF numFeatures > 128 THEN m.numFeatures := 128
+  ELSE m.numFeatures := numFeatures END;
   IF k > MaxK THEN m.k := MaxK ELSE m.k := k END;
   IF m.k = 0 THEN m.k := 1 END;
   m.weighted := weighted;
   m.hasScaler := FALSE;
-  m.scaler.numFeatures := numFeatures;
+  m.scaler.numFeatures := m.numFeatures;
   m.scaler.fitted := FALSE
 END Init;
 
@@ -75,11 +76,17 @@ VAR
   maxDist: LONGREAL;
   maxIdx: CARDINAL;
 BEGIN
+  IF (m.numTrain = 0) OR (m.trainData = NIL) THEN RETURN 0.0 END;
+
   (* Scale sample if needed *)
   IF m.hasScaler THEN
     FOR i := 0 TO m.numFeatures - 1 DO
       pSrc := ElemR(sample, i);
-      scaledBuf[i] := (pSrc^ - m.scaler.means[i]) / m.scaler.stds[i]
+      IF m.scaler.stds[i] > 0.0 THEN
+        scaledBuf[i] := (pSrc^ - m.scaler.means[i]) / m.scaler.stds[i]
+      ELSE
+        scaledBuf[i] := 0.0
+      END
     END;
     sampleAddr := ADR(scaledBuf)
   ELSE
@@ -90,7 +97,7 @@ BEGIN
   kCount := 0;
   FOR i := 0 TO m.numTrain - 1 DO
     trainRow := ADDRESS(LONGCARD(m.trainData)
-                + LONGCARD(i * m.numFeatures * TSIZE(LONGREAL)));
+                + LONGCARD(i) * LONGCARD(m.numFeatures) * LONGCARD(TSIZE(LONGREAL)));
     dist := EuclideanDist(sampleAddr, trainRow, m.numFeatures);
 
     pTarget := ElemR(m.trainTargets, i);
@@ -143,9 +150,10 @@ VAR
   row: ADDRESS;
   pPred: RealPtr;
 BEGIN
+  IF (numSamples = 0) OR (m.numTrain = 0) OR (m.trainData = NIL) THEN RETURN END;
   FOR i := 0 TO numSamples - 1 DO
     row := ADDRESS(LONGCARD(data)
-           + LONGCARD(i * m.numFeatures * TSIZE(LONGREAL)));
+           + LONGCARD(i) * LONGCARD(m.numFeatures) * LONGCARD(TSIZE(LONGREAL)));
     pPred := ElemR(predictions, i);
     pPred^ := Predict(m, row)
   END
@@ -163,7 +171,7 @@ BEGIN
   sum := 0.0;
   FOR i := 0 TO numSamples - 1 DO
     row := ADDRESS(LONGCARD(data)
-           + LONGCARD(i * m.numFeatures * TSIZE(LONGREAL)));
+           + LONGCARD(i) * LONGCARD(m.numFeatures) * LONGCARD(TSIZE(LONGREAL)));
     pred := Predict(m, row);
     pT := ElemR(targets, i);
     actual := pT^;

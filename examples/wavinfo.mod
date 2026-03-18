@@ -60,5 +60,5 @@ BEGIN
   WriteCard(durMs, 0);
   WriteString(" seconds"); WriteLn;
 
-  FreeWav(samples)
+  FreeWav(samples, info.numSamples * info.numChannels)
 END WavInfo.

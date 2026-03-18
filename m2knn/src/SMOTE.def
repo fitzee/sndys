@@ -23,7 +23,10 @@ PROCEDURE Oversample(data: ADDRESS; labels: ADDRESS;
                      VAR newData: ADDRESS; VAR newLabels: ADDRESS;
                      VAR newNumSamples: CARDINAL);
 
-(* FreeOversampled — deallocate arrays from Oversample. *)
-PROCEDURE FreeOversampled(VAR data: ADDRESS; VAR labels: ADDRESS);
+(* FreeOversampled — deallocate arrays from Oversample.
+   numSamples and numFeatures must match newNumSamples and numFeatures
+   from the Oversample call. *)
+PROCEDURE FreeOversampled(VAR data: ADDRESS; VAR labels: ADDRESS;
+                          numSamples, numFeatures: CARDINAL);
 
 END SMOTE.

@@ -91,7 +91,7 @@ BEGIN
 
   IF NOT ok THEN
     WriteString("Error: short-term extraction failed"); WriteLn;
-    FreeSignal(signal);
+    FreeSignal(signal, numSamples);
     HALT
   END;
 
@@ -108,8 +108,8 @@ BEGIN
 
   IF NOT ok THEN
     WriteString("Error: mid-term extraction failed"); WriteLn;
-    FreeFeatures(shortFeats);
-    FreeSignal(signal);
+    FreeFeatures(shortFeats, numShortFrames);
+    FreeSignal(signal, numSamples);
     HALT
   END;
 
@@ -157,7 +157,7 @@ BEGIN
   END;
 
   (* Cleanup *)
-  MidFeats.FreeMidFeatures(midFeats);
-  FreeFeatures(shortFeats);
-  FreeSignal(signal)
+  MidFeats.FreeMidFeatures(midFeats, numMidFrames, NumFeatures);
+  FreeFeatures(shortFeats, numShortFrames);
+  FreeSignal(signal, numSamples)
 END MidStats.

@@ -64,6 +64,11 @@ FROM Tonnetz IMPORT ComputeTonnetz;
 FROM VoiceFeats IMPORT ComputeFormants, ComputeJitter, ComputeShimmer,
                        ComputeHNR;
 FROM Classify IMPORT VectorLen, ExtractFileVector, TrainFromDirs, PredictFile;
+FROM Playback IMPORT InitAudio, QuitAudio, OpenDevice, CloseDevice,
+                     ResumeDevice, PauseDevice, QueueSamples,
+                     GetQueuedBytes, ClearQueued, GetObtainedSpec,
+                     Delay, RawMode, RestoreMode, KeyPressed,
+                     DeviceID, AudioSpec, FormatF32;
 FROM Stats IMPORT Mean, StdDev;
 FROM KNN IMPORT Model;
 IMPORT KNN;
@@ -84,7 +89,7 @@ VAR
 
 PROCEDURE ElemR(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END ElemR;
 
 PROCEDURE PrintReal(x: LONGREAL; decimals: CARDINAL);
@@ -190,6 +195,9 @@ BEGIN
   WriteString("  highpass    <in> <out> <freq_hz>            High-pass filter"); WriteLn;
   WriteString("  bandpass    <in> <out> <lo_hz> <hi_hz>      Band-pass filter"); WriteLn;
   WriteLn;
+  WriteString("Playback:"); WriteLn;
+  WriteString("  play        <file.wav>                      Play audio (key to stop)"); WriteLn;
+  WriteLn;
   WriteString("Generation:"); WriteLn;
   WriteString("  generate    sine  <out> <freq> <dur> [amp]"); WriteLn;
   WriteString("  generate    chirp <out> <startHz> <endHz> <dur>"); WriteLn;
@@ -246,7 +254,7 @@ BEGIN
   IF durMs < 100 THEN WriteString("0") END;
   IF durMs < 10 THEN WriteString("0") END;
   WriteCard(durMs, 0); WriteString("s"); WriteLn;
-  FreeWav(samples)
+  FreeWav(samples, info.numSamples * info.numChannels)
 END CmdInfo;
 
 (* ════════════════════════════════════════════════════ *)
@@ -268,7 +276,8 @@ BEGIN
     WriteString("Error: could not read "); WriteString(path); WriteLn; HALT
   END;
   IF info.numChannels = 2 THEN
-    StereoToMono(rawSamples, info.numSamples, mono); FreeWav(rawSamples)
+    StereoToMono(rawSamples, info.numSamples, mono);
+    FreeWav(rawSamples, info.numSamples * info.numChannels)
   ELSE mono := rawSamples END;
 
   frameSamples := info.sampleRate * 50 DIV 1000;
@@ -311,8 +320,10 @@ BEGIN
     INC(printed)
   END;
 
-  DEALLOCATE(complexBuf, 0); DEALLOCATE(magBuf, 0);
-  IF info.numChannels = 2 THEN FreeMono(mono) ELSE FreeWav(mono) END
+  DEALLOCATE(complexBuf, 2 * fftSize * TSIZE(LONGREAL));
+  DEALLOCATE(magBuf, fftSize * TSIZE(LONGREAL));
+  IF info.numChannels = 2 THEN FreeMono(mono, info.numSamples)
+  ELSE FreeWav(mono, info.numSamples) END
 END CmdSpectrum;
 
 (* ════════════════════════════════════════════════════ *)
@@ -335,7 +346,7 @@ BEGIN
               feats, numFrames, ok);
   IF NOT ok THEN
     WriteString("Error: feature extraction failed"); WriteLn;
-    FreeSignal(signal); HALT
+    FreeSignal(signal, numSamples); HALT
   END;
   (* CSV header *)
   WriteString("frame");
@@ -353,7 +364,7 @@ BEGIN
     END;
     WriteLn
   END;
-  FreeFeatures(feats); FreeSignal(signal)
+  FreeFeatures(feats, numFrames); FreeSignal(signal, numSamples)
 END CmdFeatures;
 
 (* ════════════════════════════════════════════════════ *)
@@ -380,14 +391,14 @@ BEGIN
               feats, numFrames, ok);
   IF NOT ok THEN
     WriteString("Error: feature extraction failed"); WriteLn;
-    FreeSignal(signal); HALT
+    FreeSignal(signal, numSamples); HALT
   END;
   BeatExtract(feats, numFrames, NumFeatures, WinStep, bpm, ratio);
 
   WriteString("  BPM: "); PrintReal(bpm, 1); WriteLn;
   WriteString("  Confidence: "); WriteCard(TRUNC(ratio * 100.0), 0);
   WriteString("%"); WriteLn;
-  FreeFeatures(feats); FreeSignal(signal)
+  FreeFeatures(feats, numFrames); FreeSignal(signal, numSamples)
 END CmdBeats;
 
 (* ════════════════════════════════════════════════════ *)
@@ -417,7 +428,7 @@ BEGIN
     PrintReal(segs.starts[i], 2); WriteString("s - ");
     PrintReal(segs.ends[i], 2); WriteString("s"); WriteLn
   END;
-  FreeSignal(signal)
+  FreeSignal(signal, numSamples)
 END CmdSilence;
 
 (* ════════════════════════════════════════════════════ *)
@@ -442,7 +453,7 @@ BEGIN
               shortFeats, numShortFrames, ok);
   IF NOT ok THEN
     WriteString("Error: feature extraction failed"); WriteLn;
-    FreeSignal(signal); HALT
+    FreeSignal(signal, numSamples); HALT
   END;
   midWinFrames := TRUNC(1.0 / WinStep);
   midStepFrames := TRUNC(0.5 / WinStep);
@@ -451,7 +462,7 @@ BEGIN
                    midFeats, numMidFrames, ok);
   IF NOT ok THEN
     WriteString("Error: mid-term extraction failed"); WriteLn;
-    FreeFeatures(shortFeats); FreeSignal(signal); HALT
+    FreeFeatures(shortFeats, numShortFrames); FreeSignal(signal, numSamples); HALT
   END;
   outCols := 2 * NumFeatures;
 
@@ -477,8 +488,8 @@ BEGIN
     WriteLn
   END;
 
-  MidFeats.FreeMidFeatures(midFeats);
-  FreeFeatures(shortFeats); FreeSignal(signal)
+  MidFeats.FreeMidFeatures(midFeats, numMidFrames, NumFeatures);
+  FreeFeatures(shortFeats, numShortFrames); FreeSignal(signal, numSamples)
 END CmdMidstats;
 
 (* ════════════════════════════════════════════════════ *)
@@ -666,7 +677,7 @@ BEGIN
     WriteInt(segs.labels[i], 0); WriteLn
   END;
 
-  FreeSignal(signal); KNN.FreeModel(m)
+  FreeSignal(signal, numSamples); KNN.FreeModel(m)
 END CmdSegment;
 
 (* ════════════════════════════════════════════════════ *)
@@ -717,14 +728,14 @@ BEGIN
 
   Downsample(raw, info.numSamples, info.numChannels,
              info.sampleRate, targetRate, down, outN);
-  FreeWav(raw);
+  FreeWav(raw, info.numSamples * info.numChannels);
 
   WriteString("Output: "); WriteCard(targetRate, 0);
   WriteString(" Hz, 1 ch, 16-bit, ");
   WriteCard(outN, 0); WriteString(" samples"); WriteLn;
 
   WriteWav(outPath, down, outN, targetRate, 1, 16, ok);
-  FreeMono(down);
+  FreeMono(down, outN);
 
   IF ok THEN
     WriteString("Wrote "); WriteString(outPath); WriteLn
@@ -762,15 +773,15 @@ BEGIN
   IF info.numChannels = 1 THEN
     WriteString("Already mono — copying"); WriteLn;
     WriteWav(outPath, raw, info.numSamples, info.sampleRate, 1, 16, ok);
-    FreeWav(raw)
+    FreeWav(raw, info.numSamples)
   ELSE
     StereoToMono(raw, info.numSamples, mono);
-    FreeWav(raw);
+    FreeWav(raw, info.numSamples * info.numChannels);
     WriteString("Output: "); WriteCard(info.sampleRate, 0);
     WriteString(" Hz, 1 ch, 16-bit, ");
     WriteCard(info.numSamples, 0); WriteString(" samples"); WriteLn;
     WriteWav(outPath, mono, info.numSamples, info.sampleRate, 1, 16, ok);
-    FreeMono(mono)
+    FreeMono(mono, info.numSamples)
   END;
 
   IF ok THEN
@@ -798,7 +809,7 @@ BEGIN
   END;
   ComputeSpectrogram(signal, numSamples, sampleRate, WinSize, WinStep,
                       spectro, numFrames, numBins);
-  FreeSignal(signal);
+  FreeSignal(signal, numSamples);
   IF numFrames = 0 THEN
     WriteString("Error: spectrogram failed"); WriteLn; HALT
   END;
@@ -819,7 +830,7 @@ BEGIN
     END;
     WriteLn
   END;
-  FreeSpectro(spectro)
+  FreeSpectro(spectro, numFrames * numBins)
 END CmdSpectrogram;
 
 (* ════════════════════════════════════════════════════ *)
@@ -841,7 +852,7 @@ BEGIN
   END;
   ComputeChromagram(signal, numSamples, sampleRate, WinSize, WinStep,
                      chroma, numFrames);
-  FreeSignal(signal);
+  FreeSignal(signal, numSamples);
   IF numFrames = 0 THEN
     WriteString("Error: chromagram failed"); WriteLn; HALT
   END;
@@ -856,7 +867,7 @@ BEGIN
     END;
     WriteLn
   END;
-  FreeSpectro(chroma)
+  FreeSpectro(chroma, numFrames * 12)
 END CmdChromagram;
 
 (* ════════════════════════════════════════════════════ *)
@@ -891,7 +902,7 @@ BEGIN
               feats, numFrames, ok);
   IF NOT ok THEN
     WriteString("Error: feature extraction failed"); WriteLn;
-    FreeSignal(signal); HALT
+    FreeSignal(signal, numSamples); HALT
   END;
 
   thumbDurFrames := TRUNC(thumbDurSec / WinStep);
@@ -905,7 +916,7 @@ BEGIN
 
   FindThumbnail(feats, numFrames, NumFeatures, thumbDurFrames,
                 startFrame, score);
-  FreeFeatures(feats);
+  FreeFeatures(feats, numFrames);
 
   startSec := LFLOAT(startFrame) * WinStep;
   endSec := LFLOAT(startFrame + thumbDurFrames) * WinStep;
@@ -917,9 +928,9 @@ BEGIN
 
   (* Extract and write the thumbnail audio *)
   Trim(signal, numSamples, sampleRate, startSec, endSec, trimmed, outN);
-  FreeSignal(signal);
+  FreeSignal(signal, numSamples);
   WriteWav(outPath, trimmed, outN, sampleRate, 1, 16, ok);
-  FreeProc(trimmed);
+  FreeProc(trimmed, outN);
   IF ok THEN
     WriteString("Wrote "); WriteString(outPath); WriteLn
   ELSE
@@ -960,7 +971,7 @@ BEGIN
   END;
 
   Diarize(signal, numSamples, sampleRate, numSpeakers, segs);
-  FreeSignal(signal);
+  FreeSignal(signal, numSamples);
 
   WriteLn;
   WriteString("Segments: "); WriteCard(segs.numSegments, 0); WriteLn;
@@ -993,7 +1004,7 @@ BEGIN
   winSamp := TRUNC(WinSize * LFLOAT(sampleRate));
   stepSamp := TRUNC(WinStep * LFLOAT(sampleRate));
   IF numSamples < winSamp THEN
-    WriteString("File too short"); WriteLn; FreeSignal(signal); HALT
+    WriteString("File too short"); WriteLn; FreeSignal(signal, numSamples); HALT
   END;
   numFrames := (numSamples - winSamp) DIV stepSamp + 1;
 
@@ -1001,14 +1012,14 @@ BEGIN
   FOR i := 0 TO numFrames - 1 DO
     frameStart := i * stepSamp;
     ComputeHarmonicF0(
-      ADDRESS(LONGCARD(signal) + LONGCARD(frameStart * TSIZE(LONGREAL))),
+      ADDRESS(LONGCARD(signal) + LONGCARD(frameStart) * LONGCARD(TSIZE(LONGREAL))),
       winSamp, sampleRate, hr, f0);
     WriteCard(i, 0); WriteString(",");
     PrintReal(hr, 6); WriteString(",");
     PrintReal(f0, 2); WriteLn
   END;
 
-  FreeSignal(signal)
+  FreeSignal(signal, numSamples)
 END CmdHarmonic;
 
 (* ════════════════════════════════════════════════════ *)
@@ -1027,7 +1038,7 @@ BEGIN
     WriteString("Error: could not read "); WriteString(path); WriteLn; HALT
   END;
   DetectKey(signal, numSamples, sampleRate, keyName, confidence);
-  FreeSignal(signal);
+  FreeSignal(signal, numSamples);
   WriteString("Key: "); WriteString(keyName); WriteLn;
   WriteString("Confidence: "); PrintReal(confidence, 4); WriteLn
 END CmdKey;
@@ -1054,7 +1065,7 @@ BEGIN
   END;
   DetectOnsets(signal, numSamples, sampleRate, sensitivity,
                onsets, numOnsets);
-  FreeSignal(signal);
+  FreeSignal(signal, numSamples);
   WriteString("Onsets: "); WriteCard(numOnsets, 0); WriteLn;
   FOR i := 0 TO numOnsets - 1 DO
     WriteString("  "); PrintReal(onsets[i], 3); WriteString("s"); WriteLn
@@ -1079,9 +1090,9 @@ BEGIN
   ReadAudio(inPath, signal, numSamples, sampleRate, ok);
   IF NOT ok THEN WriteString("Error reading input"); WriteLn; HALT END;
   Trim(signal, numSamples, sampleRate, startSec, endSec, trimmed, outN);
-  FreeSignal(signal);
+  FreeSignal(signal, numSamples);
   WriteWav(outPath, trimmed, outN, sampleRate, 1, 16, ok);
-  FreeProc(trimmed);
+  FreeProc(trimmed, outN);
   IF ok THEN
     WriteString("Trimmed "); PrintReal(startSec, 2);
     WriteString("s-"); PrintReal(endSec, 2);
@@ -1108,9 +1119,9 @@ BEGIN
   ReadAudio(pathB, sigB, nB, srB, ok2);
   IF (NOT ok1) OR (NOT ok2) THEN WriteString("Error reading inputs"); WriteLn; HALT END;
   Mix(sigA, nA, sigB, nB, ratio, mixed, outN);
-  FreeSignal(sigA); FreeSignal(sigB);
+  FreeSignal(sigA, nA); FreeSignal(sigB, nB);
   WriteWav(outPath, mixed, outN, srA, 1, 16, ok);
-  FreeProc(mixed);
+  FreeProc(mixed, outN);
   IF ok THEN WriteString("Mixed -> "); WriteString(outPath); WriteLn
   ELSE WriteString("Error writing output"); WriteLn END
 END CmdMix;
@@ -1133,7 +1144,7 @@ BEGIN
   IF NOT ok THEN WriteString("Error reading input"); WriteLn; HALT END;
   Normalize(signal, numSamples, peak);
   WriteWav(outPath, signal, numSamples, sampleRate, 1, 16, ok);
-  FreeSignal(signal);
+  FreeSignal(signal, numSamples);
   IF ok THEN WriteString("Normalized -> "); WriteString(outPath); WriteLn
   ELSE WriteString("Error writing output"); WriteLn END
 END CmdNormalize;
@@ -1157,7 +1168,7 @@ BEGIN
   FadeIn(signal, numSamples, sampleRate, fadeInSec);
   FadeOut(signal, numSamples, sampleRate, fadeOutSec);
   WriteWav(outPath, signal, numSamples, sampleRate, 1, 16, ok);
-  FreeSignal(signal);
+  FreeSignal(signal, numSamples);
   IF ok THEN
     WriteString("Fades applied -> "); WriteString(outPath); WriteLn
   ELSE WriteString("Error writing output"); WriteLn END
@@ -1178,7 +1189,7 @@ BEGIN
   IF NOT ok THEN WriteString("Error reading input"); WriteLn; HALT END;
   Reverse(signal, numSamples);
   WriteWav(outPath, signal, numSamples, sampleRate, 1, 16, ok);
-  FreeSignal(signal);
+  FreeSignal(signal, numSamples);
   IF ok THEN WriteString("Reversed -> "); WriteString(outPath); WriteLn
   ELSE WriteString("Error writing output"); WriteLn END
 END CmdReverse;
@@ -1211,7 +1222,7 @@ BEGIN
     IF ArgCount() >= 7 THEN GetArg(6, arg3); amp := ParseReal(arg3) END;
     GenerateSine(freq, dur, sr, amp, output, outN);
     WriteWav(outPath, output, outN, sr, 1, 16, ok);
-    FreeProc(output);
+    FreeProc(output, outN);
     IF ok THEN
       PrintReal(freq, 1); WriteString("Hz sine, ");
       PrintReal(dur, 1); WriteString("s -> "); WriteString(outPath); WriteLn
@@ -1226,7 +1237,7 @@ BEGIN
     GetArg(6, arg3); dur := ParseReal(arg3);
     GenerateChirp(freq, freq2, dur, sr, amp, output, outN);
     WriteWav(outPath, output, outN, sr, 1, 16, ok);
-    FreeProc(output);
+    FreeProc(output, outN);
     IF ok THEN
       PrintReal(freq, 0); WriteString("-"); PrintReal(freq2, 0);
       WriteString("Hz chirp -> "); WriteString(outPath); WriteLn
@@ -1239,7 +1250,7 @@ BEGIN
     GetArg(4, arg3); dur := ParseReal(arg3);
     GenerateNoise(dur, sr, amp, output, outN);
     WriteWav(outPath, output, outN, sr, 1, 16, ok);
-    FreeProc(output);
+    FreeProc(output, outN);
     IF ok THEN
       PrintReal(dur, 1); WriteString("s noise -> "); WriteString(outPath); WriteLn
     END
@@ -1252,7 +1263,7 @@ BEGIN
     GetArg(5, arg4); dur := ParseReal(arg4);
     GenerateClick(bpm, dur, sr, output, outN);
     WriteWav(outPath, output, outN, sr, 1, 16, ok);
-    FreeProc(output);
+    FreeProc(output, outN);
     IF ok THEN
       PrintReal(bpm, 0); WriteString(" BPM click track -> ");
       WriteString(outPath); WriteLn
@@ -1278,14 +1289,14 @@ BEGIN
   ReadAudio(path, signal, numSamples, sampleRate, ok);
   IF NOT ok THEN WriteString("Error reading file"); WriteLn; HALT END;
   TrackPitch(signal, numSamples, sampleRate, 5, pitches, ptimes, numFrames);
-  FreeSignal(signal);
+  FreeSignal(signal, numSamples);
   WriteString("time_sec,f0_hz"); WriteLn;
   FOR i := 0 TO numFrames - 1 DO
     pT := ElemR(ptimes, i);
     pP := ElemR(pitches, i);
     PrintReal(pT^, 3); WriteString(","); PrintReal(pP^, 2); WriteLn
   END;
-  FreePitch(pitches, ptimes)
+  FreePitch(pitches, ptimes, numFrames)
 END CmdPitch;
 
 (* ════════════════════════════════════════════════════ *)
@@ -1309,14 +1320,14 @@ BEGIN
   IF NOT ok THEN WriteString("Error reading file"); WriteLn; HALT END;
   ComputeTempoCurve(signal, numSamples, sampleRate, winSec, hopSec,
                      bpms, ttimes, numPoints);
-  FreeSignal(signal);
+  FreeSignal(signal, numSamples);
   WriteString("time_sec,bpm"); WriteLn;
   FOR i := 0 TO numPoints - 1 DO
     pT := ElemR(ttimes, i);
     pB := ElemR(bpms, i);
     PrintReal(pT^, 2); WriteString(","); PrintReal(pB^, 1); WriteLn
   END;
-  FreeTempoCurve(bpms, ttimes)
+  FreeTempoCurve(bpms, ttimes, numPoints)
 END CmdTempoCurve;
 
 (* ════════════════════════════════════════════════════ *)
@@ -1338,9 +1349,9 @@ BEGIN
   ReadAudio(pathB, sigB, nB, srB, ok2);
   IF (NOT ok1) OR (NOT ok2) THEN WriteString("Error reading inputs"); WriteLn; HALT END;
   AudioConcat.Concat(sigA, nA, sigB, nB, srA, xfade, result, outN);
-  FreeSignal(sigA); FreeSignal(sigB);
+  FreeSignal(sigA, nA); FreeSignal(sigB, nB);
   WriteWav(outPath, result, outN, srA, 1, 16, ok);
-  AudioConcat.FreeConcat(result);
+  AudioConcat.FreeConcat(result, outN);
   IF ok THEN
     WriteString("Concatenated -> "); WriteString(outPath);
     IF xfade > 0.0 THEN
@@ -1367,7 +1378,7 @@ BEGIN
   IF NOT ok THEN WriteString("Error reading input"); WriteLn; HALT END;
   Lowpass(signal, numSamples, sampleRate, freq);
   WriteWav(outPath, signal, numSamples, sampleRate, 1, 16, ok);
-  FreeSignal(signal);
+  FreeSignal(signal, numSamples);
   IF ok THEN
     WriteString("Lowpass "); PrintReal(freq, 0);
     WriteString("Hz -> "); WriteString(outPath); WriteLn
@@ -1389,7 +1400,7 @@ BEGIN
   IF NOT ok THEN WriteString("Error reading input"); WriteLn; HALT END;
   Highpass(signal, numSamples, sampleRate, freq);
   WriteWav(outPath, signal, numSamples, sampleRate, 1, 16, ok);
-  FreeSignal(signal);
+  FreeSignal(signal, numSamples);
   IF ok THEN
     WriteString("Highpass "); PrintReal(freq, 0);
     WriteString("Hz -> "); WriteString(outPath); WriteLn
@@ -1412,7 +1423,7 @@ BEGIN
   IF NOT ok THEN WriteString("Error reading input"); WriteLn; HALT END;
   Bandpass(signal, numSamples, sampleRate, loHz, hiHz);
   WriteWav(outPath, signal, numSamples, sampleRate, 1, 16, ok);
-  FreeSignal(signal);
+  FreeSignal(signal, numSamples);
   IF ok THEN
     WriteString("Bandpass "); PrintReal(loHz, 0);
     WriteString("-"); PrintReal(hiHz, 0);
@@ -1436,7 +1447,7 @@ BEGIN
     WriteString("Error: could not read "); WriteString(path); WriteLn; HALT
   END;
   Analyze(signal, numSamples, sampleRate, st);
-  FreeSignal(signal);
+  FreeSignal(signal, numSamples);
 
   WriteString("File: "); WriteString(path); WriteLn;
   WriteString("  Duration:     "); PrintReal(st.duration, 2);
@@ -1476,7 +1487,7 @@ BEGIN
   END;
   WriteString(path); WriteLn;
   DrawWaveform(signal, numSamples, 80, 20);
-  FreeSignal(signal)
+  FreeSignal(signal, numSamples)
 END CmdWaveform;
 
 (* ════════════════════════════════════════════════════ *)
@@ -1536,23 +1547,23 @@ BEGIN
   (* Detect per-frame chords from chromagram *)
   ComputeChromagram(signal, numSamples, sampleRate, 0.050, 0.025,
                      chroma, numFrames);
-  FreeSignal(signal);
+  FreeSignal(signal, numSamples);
   IF numFrames = 0 THEN WriteString("No frames"); WriteLn; HALT END;
 
   DetectChordSequence(chroma, numFrames, chords, numChords);
-  FreeSpectro(chroma);
+  FreeSpectro(chroma, numFrames * 12);
 
   WriteString("Chord sequence ("); WriteCard(numChords, 0);
   WriteString(" segments):"); WriteLn;
 
   FOR i := 0 TO numChords - 1 DO
-    cp := ChordPtr(LONGCARD(chords) + LONGCARD(i * TSIZE(ChordResult)));
+    cp := ChordPtr(LONGCARD(chords) + LONGCARD(i) * LONGCARD(TSIZE(ChordResult)));
     WriteString("  "); WriteString(cp^.name);
     WriteString("  ("); PrintReal(cp^.confidence, 2); WriteString(")");
     WriteLn
   END;
 
-  FreeChords(chords)
+  FreeChords(chords, numChords)
 END CmdChords;
 
 (* ════════════════════════════════════════════════════ *)
@@ -1574,13 +1585,13 @@ BEGIN
   IF NOT ok THEN WriteString("Error reading file"); WriteLn; HALT END;
 
   Transcribe(signal, numSamples, sampleRate, notes, numNotes);
-  FreeSignal(signal);
+  FreeSignal(signal, numSamples);
 
   WriteString("Notes: "); WriteCard(numNotes, 0); WriteLn;
   WriteString("  Start     End      Note   MIDI  Hz"); WriteLn;
 
   FOR i := 0 TO numNotes - 1 DO
-    np := NotePtr(LONGCARD(notes) + LONGCARD(i * TSIZE(NoteEvent)));
+    np := NotePtr(LONGCARD(notes) + LONGCARD(i) * LONGCARD(TSIZE(NoteEvent)));
     WriteString("  ");
     PrintReal(np^.startSec, 3); WriteString("s  ");
     PrintReal(np^.endSec, 3); WriteString("s  ");
@@ -1590,7 +1601,7 @@ BEGIN
     WriteLn
   END;
 
-  FreeNotes(notes)
+  FreeNotes(notes, numNotes)
 END CmdNotes;
 
 (* ════════════════════════════════════════════════════ *)
@@ -1611,7 +1622,7 @@ BEGIN
   IF NOT ok THEN WriteString("Error reading file"); WriteLn; HALT END;
   ComputeChromagram(signal, numSamples, sampleRate, 0.050, 0.025,
                      chroma, numFrames);
-  FreeSignal(signal);
+  FreeSignal(signal, numSamples);
   IF numFrames = 0 THEN WriteString("No frames"); WriteLn; HALT END;
 
   WriteString("frame,fifths_y,fifths_x,min3_y,min3_x,maj3_y,maj3_x"); WriteLn;
@@ -1627,7 +1638,7 @@ BEGIN
     END;
     WriteLn
   END;
-  FreeSpectro(chroma)
+  FreeSpectro(chroma, numFrames * 12)
 END CmdTonnetz;
 
 (* ════════════════════════════════════════════════════ *)
@@ -1676,8 +1687,8 @@ BEGIN
   WriteString("  Shimmer: "); PrintReal(shim * 100.0, 4);
   WriteString("%"); WriteLn;
 
-  FreePitch(pitches, ptimes);
-  FreeSignal(signal)
+  FreePitch(pitches, ptimes, numFrames);
+  FreeSignal(signal, numSamples)
 END CmdVoice;
 
 (* ════════════════════════════════════════════════════ *)
@@ -1696,17 +1707,17 @@ BEGIN
   IF NOT ok THEN WriteString("Error reading file"); WriteLn; HALT END;
   ComputeSpectrogram(signal, numSamples, sampleRate, 0.050, 0.025,
                       spectro, numFrames, numBins);
-  FreeSignal(signal);
+  FreeSignal(signal, numSamples);
   IF numFrames = 0 THEN WriteString("No frames"); WriteLn; HALT END;
 
   WriteString("frame,flatness"); WriteLn;
   FOR t := 0 TO numFrames - 1 DO
     flat := SpectralFlatness(
-      ADDRESS(LONGCARD(spectro) + LONGCARD(t * numBins * TSIZE(LONGREAL))),
+      ADDRESS(LONGCARD(spectro) + LONGCARD(t) * LONGCARD(numBins) * LONGCARD(TSIZE(LONGREAL))),
       numBins);
     WriteCard(t, 0); WriteString(","); PrintReal(flat, 6); WriteLn
   END;
-  FreeSpectro(spectro)
+  FreeSpectro(spectro, numFrames * numBins)
 END CmdFlatness;
 
 (* ════════════════════════════════════════════════════ *)
@@ -1726,10 +1737,10 @@ BEGIN
 
   ComputeTempoCurve(signal, numSamples, sampleRate, 10.0, 5.0,
                      bpms, ttimes, numPoints);
-  FreeSignal(signal);
+  FreeSignal(signal, numSamples);
 
   stab := TempoStability(bpms, numPoints);
-  FreeTempoCurve(bpms, ttimes);
+  FreeTempoCurve(bpms, ttimes, numPoints);
 
   WriteString("Tempo stability: "); PrintReal(stab, 4); WriteLn;
   IF stab < 0.05 THEN
@@ -1774,7 +1785,7 @@ BEGIN
   WriteString("Duration:   "); PrintReal(GetDuration(info), 2);
   WriteString("s ("); WriteCard(info.numSamples, 0);
   WriteString(" samples)"); WriteLn;
-  FreeWav(rawSamples);
+  FreeWav(rawSamples, info.numSamples * info.numChannels);
   WriteLn;
 
   (* Stats *)
@@ -1808,7 +1819,7 @@ BEGIN
     WriteString("BPM:        "); PrintReal(bpm, 1);
     WriteString(" ("); WriteCard(TRUNC(ratio * 100.0), 0);
     WriteString("% confidence)"); WriteLn;
-    FreeFeatures(feats)
+    FreeFeatures(feats, numFrames)
   END;
 
   (* Silence *)
@@ -1816,7 +1827,7 @@ BEGIN
   WriteString("Activity:   "); WriteCard(segs.numSegments, 0);
   WriteString(" non-silent segments"); WriteLn;
 
-  FreeSignal(signal)
+  FreeSignal(signal, numSamples)
 END CmdAnalyze;
 
 (* ════════════════════════════════════════════════════ *)
@@ -1920,9 +1931,9 @@ BEGIN
     WriteString("  BPM: "); PrintReal(bpm, 1);
     WriteString("  ("); WriteCard(TRUNC(ratio * 100.0), 0);
     WriteString("%)"); WriteLn;
-    FreeFeatures(feats)
+    FreeFeatures(feats, numFrames)
   END;
-  FreeSignal(signal)
+  FreeSignal(signal, numSamples)
 END CmdBeatsFile;
 
 PROCEDURE CmdKeyFile(path: ARRAY OF CHAR);
@@ -1935,7 +1946,7 @@ BEGIN
   DetectKey(signal, numSamples, sampleRate, keyName, confidence);
   WriteString("  Key: "); WriteString(keyName);
   WriteString("  ("); PrintReal(confidence, 2); WriteString(")"); WriteLn;
-  FreeSignal(signal)
+  FreeSignal(signal, numSamples)
 END CmdKeyFile;
 
 PROCEDURE CmdStatsFile(path: ARRAY OF CHAR);
@@ -1950,7 +1961,7 @@ BEGIN
   WriteString(" dBFS  Peak: "); PrintReal(st.peakDB, 2);
   WriteString(" dBFS  Crest: "); PrintReal(st.crestFactor, 2);
   WriteString(" dB"); WriteLn;
-  FreeSignal(signal)
+  FreeSignal(signal, numSamples)
 END CmdStatsFile;
 
 PROCEDURE CmdAnalyzeFile(path: ARRAY OF CHAR);
@@ -1973,9 +1984,9 @@ BEGIN
   IF ok THEN
     BeatExtract(feats, numFrames, NumFeatures, WinStep, bpm, ratio);
     WriteString("  BPM: "); PrintReal(bpm, 1); WriteLn;
-    FreeFeatures(feats)
+    FreeFeatures(feats, numFrames)
   END;
-  FreeSignal(signal)
+  FreeSignal(signal, numSamples)
 END CmdAnalyzeFile;
 
 (* ════════════════════════════════════════════════════ *)
@@ -1988,6 +1999,93 @@ BEGIN
 END CmdVersion;
 
 (* ════════════════════════════════════════════════════ *)
+
+PROCEDURE CmdPlay;
+CONST
+  ChunkFrames = 4096;       (* feed 4K frames at a time *)
+  MaxQueueBytes = 65536;    (* keep ~64KB queued ahead = ~0.3s at 48kHz F32 *)
+VAR
+  path: PathBuf;
+  signal: ADDRESS;
+  numSamples, sampleRate: CARDINAL;
+  ok: BOOLEAN;
+  dev: DeviceID;
+  spec: AudioSpec;
+  totalFrames, offset, chunk: CARDINAL;
+  durSec: CARDINAL;
+  stopped: BOOLEAN;
+BEGIN
+  IF ArgCount() < 3 THEN
+    WriteString("Usage: sndys play <file.wav>"); WriteLn; HALT
+  END;
+  GetArg(2, path);
+
+  ReadAudio(path, signal, numSamples, sampleRate, ok);
+  IF NOT ok THEN
+    WriteString("Error reading "); WriteString(path); WriteLn; HALT
+  END;
+
+  IF NOT InitAudio() THEN
+    WriteString("Error: SDL audio init failed"); WriteLn;
+    FreeSignal(signal, numSamples); HALT
+  END;
+
+  dev := OpenDevice(sampleRate, 1, FormatF32, 2048);
+  IF dev = 0 THEN
+    WriteString("Error: could not open audio device"); WriteLn;
+    QuitAudio; FreeSignal(signal, numSamples); HALT
+  END;
+
+  GetObtainedSpec(spec);
+  durSec := numSamples DIV sampleRate;
+
+  WriteString("Playing: "); WriteString(path); WriteLn;
+  WriteString("  "); WriteCard(sampleRate, 0); WriteString(" Hz, ");
+  WriteCard(durSec, 0); WriteString("s  (press any key to stop)"); WriteLn;
+
+  totalFrames := numSamples;
+  offset := 0;
+  stopped := FALSE;
+
+  ResumeDevice(dev);
+  RawMode;
+
+  (* Stream: feed small chunks, check for keypress between them *)
+  WHILE (offset < totalFrames) AND (NOT stopped) DO
+    IF KeyPressed() THEN
+      stopped := TRUE
+    ELSIF GetQueuedBytes(dev) < MaxQueueBytes THEN
+      chunk := totalFrames - offset;
+      IF chunk > ChunkFrames THEN chunk := ChunkFrames END;
+      ok := QueueSamples(dev, ADDRESS(LONGCARD(signal)
+            + LONGCARD(offset) * LONGCARD(TSIZE(LONGREAL))),
+            chunk, 1);
+      offset := offset + chunk
+    ELSE
+      Delay(10)
+    END
+  END;
+
+  (* If not stopped, wait for remaining queue to drain *)
+  IF NOT stopped THEN
+    WHILE GetQueuedBytes(dev) > 0 DO
+      IF KeyPressed() THEN stopped := TRUE END;
+      IF NOT stopped THEN Delay(10) END
+    END;
+    IF NOT stopped THEN Delay(50) END
+  END;
+
+  IF stopped THEN
+    PauseDevice(dev);
+    ClearQueued(dev);
+    WriteLn; WriteString("Stopped."); WriteLn
+  END;
+
+  RestoreMode;
+  CloseDevice(dev);
+  QuitAudio;
+  FreeSignal(signal, numSamples)
+END CmdPlay;
 
 BEGIN
   IF ArgCount() < 2 THEN
@@ -2038,6 +2136,7 @@ BEGIN
   ELSIF StrEq(cmd, "stability") THEN CmdStability
   ELSIF StrEq(cmd, "analyze") THEN CmdAnalyze
   ELSIF StrEq(cmd, "batch") THEN CmdBatch
+  ELSIF StrEq(cmd, "play") THEN CmdPlay
   ELSIF StrEq(cmd, "version") THEN CmdVersion
   ELSE
     WriteString("Unknown command: "); WriteString(cmd); WriteLn;

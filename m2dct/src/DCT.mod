@@ -15,7 +15,7 @@ TYPE
    starting at base. *)
 PROCEDURE ElemPtr(base: ADDRESS; idx: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(idx * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(idx) * LONGCARD(TSIZE(LONGREAL)))
 END ElemPtr;
 
 PROCEDURE Forward(input: ADDRESS; n: CARDINAL; output: ADDRESS);
@@ -24,6 +24,7 @@ VAR
   sum, angle: LONGREAL;
   pIn, pOut: RealPtr;
 BEGIN
+  IF n = 0 THEN RETURN END;
   FOR k := 0 TO n - 1 DO
     sum := 0.0D0;
     FOR i := 0 TO n - 1 DO
@@ -43,6 +44,8 @@ VAR
   sum, angle: LONGREAL;
   pIn, pOut: RealPtr;
 BEGIN
+  IF n = 0 THEN RETURN END;
+  IF numCoeffs = 0 THEN RETURN END;
   FOR k := 0 TO numCoeffs - 1 DO
     sum := 0.0D0;
     FOR i := 0 TO n - 1 DO
@@ -61,6 +64,7 @@ VAR
   sum, angle, invN: LONGREAL;
   pIn, pOut, pDc: RealPtr;
 BEGIN
+  IF n = 0 THEN RETURN END;
   invN := 1.0D0 / LFLOAT(n);
   pDc := ElemPtr(input, 0);
   FOR i := 0 TO n - 1 DO

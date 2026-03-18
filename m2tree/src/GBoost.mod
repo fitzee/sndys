@@ -17,7 +17,7 @@ PROCEDURE GetReal(base: ADDRESS; idx: CARDINAL): LONGREAL;
 VAR
   p: RealPtr;
 BEGIN
-  p := RealPtr(LONGCARD(base) + LONGCARD(idx * TSIZE(LONGREAL)));
+  p := RealPtr(LONGCARD(base) + LONGCARD(idx) * LONGCARD(TSIZE(LONGREAL)));
   RETURN p^
 END GetReal;
 
@@ -25,7 +25,7 @@ PROCEDURE SetReal(base: ADDRESS; idx: CARDINAL; val: LONGREAL);
 VAR
   p: RealPtr;
 BEGIN
-  p := RealPtr(LONGCARD(base) + LONGCARD(idx * TSIZE(LONGREAL)));
+  p := RealPtr(LONGCARD(base) + LONGCARD(idx) * LONGCARD(TSIZE(LONGREAL)));
   p^ := val
 END SetReal;
 
@@ -33,7 +33,7 @@ PROCEDURE GetInt(base: ADDRESS; idx: CARDINAL): INTEGER;
 VAR
   p: IntPtr;
 BEGIN
-  p := IntPtr(LONGCARD(base) + LONGCARD(idx * TSIZE(INTEGER)));
+  p := IntPtr(LONGCARD(base) + LONGCARD(idx) * LONGCARD(TSIZE(INTEGER)));
   RETURN p^
 END GetInt;
 
@@ -41,7 +41,7 @@ PROCEDURE SetInt(base: ADDRESS; idx: CARDINAL; val: INTEGER);
 VAR
   p: IntPtr;
 BEGIN
-  p := IntPtr(LONGCARD(base) + LONGCARD(idx * TSIZE(INTEGER)));
+  p := IntPtr(LONGCARD(base) + LONGCARD(idx) * LONGCARD(TSIZE(INTEGER)));
   p^ := val
 END SetInt;
 
@@ -49,7 +49,7 @@ PROCEDURE GetCard(base: ADDRESS; idx: CARDINAL): CARDINAL;
 VAR
   p: CardPtr;
 BEGIN
-  p := CardPtr(LONGCARD(base) + LONGCARD(idx * TSIZE(CARDINAL)));
+  p := CardPtr(LONGCARD(base) + LONGCARD(idx) * LONGCARD(TSIZE(CARDINAL)));
   RETURN p^
 END GetCard;
 
@@ -57,7 +57,7 @@ PROCEDURE SetCard(base: ADDRESS; idx: CARDINAL; val: CARDINAL);
 VAR
   p: CardPtr;
 BEGIN
-  p := CardPtr(LONGCARD(base) + LONGCARD(idx * TSIZE(CARDINAL)));
+  p := CardPtr(LONGCARD(base) + LONGCARD(idx) * LONGCARD(TSIZE(CARDINAL)));
   p^ := val
 END SetCard;
 
@@ -242,8 +242,11 @@ BEGIN
       RETURN 0
     END
   ELSE
-    (* Multi-class: one-vs-rest scores *)
+    (* Multi-class: one-vs-rest scores — clamp to array size *)
     treesPerClass := m.numTrees;
+    IF m.numClasses > 32 THEN
+      RETURN 0
+    END;
     FOR c := 0 TO m.numClasses - 1 DO
       scores[c] := 0.0;
       FOR round := 0 TO treesPerClass - 1 DO

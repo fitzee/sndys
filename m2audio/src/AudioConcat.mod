@@ -8,7 +8,7 @@ TYPE
 
 PROCEDURE Elem(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END Elem;
 
 PROCEDURE Concat(sigA: ADDRESS; numA: CARDINAL;
@@ -30,34 +30,43 @@ BEGIN
   ALLOCATE(output, totalLen * TSIZE(LONGREAL));
 
   (* Copy A (before crossfade region) *)
-  FOR i := 0 TO numA - xfadeSamp - 1 DO
-    pA := Elem(sigA, i);
-    pOut := Elem(output, i);
-    pOut^ := pA^
+  IF numA > xfadeSamp THEN
+    FOR i := 0 TO numA - xfadeSamp - 1 DO
+      pA := Elem(sigA, i);
+      pOut := Elem(output, i);
+      pOut^ := pA^
+    END
   END;
 
   (* Crossfade region *)
-  FOR i := 0 TO xfadeSamp - 1 DO
-    t := LFLOAT(i) / LFLOAT(xfadeSamp);  (* 0..1 *)
-    pA := Elem(sigA, numA - xfadeSamp + i);
-    pB := Elem(sigB, i);
-    pOut := Elem(output, numA - xfadeSamp + i);
-    pOut^ := pA^ * (1.0 - t) + pB^ * t
+  IF xfadeSamp > 0 THEN
+    FOR i := 0 TO xfadeSamp - 1 DO
+      t := LFLOAT(i) / LFLOAT(xfadeSamp);  (* 0..1 *)
+      pA := Elem(sigA, numA - xfadeSamp + i);
+      pB := Elem(sigB, i);
+      pOut := Elem(output, numA - xfadeSamp + i);
+      pOut^ := pA^ * (1.0 - t) + pB^ * t
+    END
   END;
 
   (* Copy B (after crossfade region) *)
-  FOR i := xfadeSamp TO numB - 1 DO
-    pB := Elem(sigB, i);
-    pOut := Elem(output, numA + i - xfadeSamp);
-    pOut^ := pB^
+  IF xfadeSamp < numB THEN
+    FOR i := xfadeSamp TO numB - 1 DO
+      pB := Elem(sigB, i);
+      pOut := Elem(output, numA + i - xfadeSamp);
+      pOut^ := pB^
+    END
   END;
 
   outSamples := totalLen
 END Concat;
 
-PROCEDURE FreeConcat(VAR output: ADDRESS);
+PROCEDURE FreeConcat(VAR output: ADDRESS; outSamples: CARDINAL);
 BEGIN
-  IF output # NIL THEN DEALLOCATE(output, 0); output := NIL END
+  IF output # NIL THEN
+    DEALLOCATE(output, outSamples * TSIZE(LONGREAL));
+    output := NIL
+  END
 END FreeConcat;
 
 END AudioConcat.

@@ -54,7 +54,7 @@ BEGIN
 
   IF NOT ok THEN
     WriteString("Error: feature extraction failed"); WriteLn;
-    FreeSignal(signal);
+    FreeSignal(signal, numSamples);
     HALT
   END;
 
@@ -87,6 +87,6 @@ BEGIN
   END;
   WriteLn;
 
-  FreeFeatures(featureMatrix);
-  FreeSignal(signal)
+  FreeFeatures(featureMatrix, numFrames);
+  FreeSignal(signal, numSamples)
 END BeatTrack.

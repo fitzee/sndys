@@ -7,7 +7,7 @@ TYPE
 
 PROCEDURE Elem(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END Elem;
 
 PROCEDURE ComputeHarmonicF0(frame: ADDRESS; frameLen, sampleRate: CARDINAL;
@@ -23,7 +23,7 @@ BEGIN
   harmonicRatio := 0.0;
   f0 := 0.0;
 
-  IF frameLen < 4 THEN RETURN END;
+  IF (frameLen < 4) OR (sampleRate = 0) THEN RETURN END;
 
   (* Lag range: 50-500 Hz -> lag = sampleRate/freq *)
   maxLag := sampleRate DIV 50;   (* lowest freq = longest lag *)

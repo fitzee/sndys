@@ -14,7 +14,7 @@ TYPE
 
 PROCEDURE Elem(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END Elem;
 
 (* Simple insertion sort for small arrays *)
@@ -65,7 +65,7 @@ BEGIN
   (* Extract raw F0 per frame *)
   FOR i := 0 TO totalFrames - 1 DO
     frameAddr := ADDRESS(LONGCARD(signal)
-                 + LONGCARD(i * stepSamp * TSIZE(LONGREAL)));
+                 + LONGCARD(i) * LONGCARD(stepSamp) * LONGCARD(TSIZE(LONGREAL)));
     ComputeHarmonicF0(frameAddr, winSamp, sampleRate, hr, f0);
 
     pT := Elem(times, i);
@@ -123,16 +123,19 @@ BEGIN
       pP := Elem(pitches, i);
       pP^ := pSrc^
     END;
-    DEALLOCATE(smoothed, 0)
+    DEALLOCATE(smoothed, totalFrames * TSIZE(LONGREAL))
   END;
 
   numFrames := totalFrames
 END TrackPitch;
 
-PROCEDURE FreePitch(VAR pitches: ADDRESS; VAR times: ADDRESS);
+PROCEDURE FreePitch(VAR pitches: ADDRESS; VAR times: ADDRESS;
+                    numFrames: CARDINAL);
+VAR sz: CARDINAL;
 BEGIN
-  IF pitches # NIL THEN DEALLOCATE(pitches, 0); pitches := NIL END;
-  IF times # NIL THEN DEALLOCATE(times, 0); times := NIL END
+  sz := numFrames * TSIZE(LONGREAL);
+  IF pitches # NIL THEN DEALLOCATE(pitches, sz); pitches := NIL END;
+  IF times # NIL THEN DEALLOCATE(times, sz); times := NIL END
 END FreePitch;
 
 END PitchTrack.

@@ -1,0 +1,70 @@
+DEFINITION MODULE UI;
+(* Immediate-mode UI primitives for sndysUI.
+   Dark theme, flat design, built on m2gfx Canvas + Font. *)
+
+FROM Gfx IMPORT Renderer;
+FROM Font IMPORT FontHandle;
+
+(* ── Theme colors (set once at init) ─────────────────── *)
+
+VAR
+  colBg, colPanel, colToolbar, colTab, colTabActive: CARDINAL;
+  colText, colTextDim, colAccent, colWave, colSelection: CARDINAL;
+  colGrid, colBorder, colButton, colButtonHover: CARDINAL;
+  colRed, colGreen, colYellow, colCyan: CARDINAL;
+
+(* ── Fonts ────────────────────────────────────────────── *)
+
+VAR
+  fontNormal: FontHandle;
+  fontSmall:  FontHandle;
+  fontBold:   FontHandle;
+  lineH:      INTEGER;      (* normal font line height *)
+  smallH:     INTEGER;      (* small font line height *)
+
+PROCEDURE InitTheme;
+PROCEDURE LoadFonts(): BOOLEAN;
+PROCEDURE FreeFonts;
+
+(* ── Drawing helpers ──────────────────────────────────── *)
+
+PROCEDURE SetCol(ren: Renderer; packed: CARDINAL);
+PROCEDURE Label(ren: Renderer; x, y: INTEGER; text: ARRAY OF CHAR;
+                col: CARDINAL);
+PROCEDURE LabelSmall(ren: Renderer; x, y: INTEGER; text: ARRAY OF CHAR;
+                     col: CARDINAL);
+PROCEDURE LabelBold(ren: Renderer; x, y: INTEGER; text: ARRAY OF CHAR;
+                    col: CARDINAL);
+PROCEDURE Panel(ren: Renderer; x, y, w, h: INTEGER; col: CARDINAL);
+PROCEDURE PanelBorder(ren: Renderer; x, y, w, h: INTEGER;
+                       bg, border: CARDINAL);
+
+(* ── Buttons ──────────────────────────────────────────── *)
+
+(* Returns TRUE if the button was clicked this frame *)
+PROCEDURE Button(ren: Renderer; x, y, w, h: INTEGER;
+                 text: ARRAY OF CHAR;
+                 mx, my: INTEGER; clicked: BOOLEAN): BOOLEAN;
+
+(* Tab bar — returns the index of the clicked tab, or current if none.
+   Up to 8 tabs. Pass empty string for unused slots. *)
+PROCEDURE TabBar(ren: Renderer; x, y, w: INTEGER;
+                 VAR t0, t1, t2, t3, t4, t5, t6, t7: ARRAY OF CHAR;
+                 numTabs, current: CARDINAL;
+                 mx, my: INTEGER; clicked: BOOLEAN): CARDINAL;
+
+(* ── Modal overlay ────────────────────────────────────── *)
+
+(* Draw a centered modal dialog with message and animated spinner.
+   tick is a frame counter for animation. *)
+PROCEDURE ModalOverlay(ren: Renderer; winW, winH: INTEGER;
+                        msg: ARRAY OF CHAR; tick: CARDINAL);
+
+(* ── Number formatting ────────────────────────────────── *)
+
+PROCEDURE FmtReal(x: LONGREAL; decimals: CARDINAL;
+                  VAR buf: ARRAY OF CHAR);
+PROCEDURE FmtCard(x: CARDINAL; VAR buf: ARRAY OF CHAR);
+PROCEDURE FmtInt(x: INTEGER; VAR buf: ARRAY OF CHAR);
+
+END UI.

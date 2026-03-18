@@ -19,7 +19,7 @@ TYPE
 
 PROCEDURE Elem(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END Elem;
 
 PROCEDURE ResetBiquad(VAR bq: Biquad);
@@ -34,6 +34,11 @@ PROCEDURE DesignLP(VAR bq: Biquad; fc, fs, q: LONGREAL);
 VAR
   w0, alpha, cosw0, a0: LONGREAL;
 BEGIN
+  IF (fs < 1.0D-10) OR (q < 1.0D-10) THEN
+    ResetBiquad(bq);
+    bq.b0 := 1.0;
+    RETURN
+  END;
   w0 := 2.0 * Pi * fc / fs;
   cosw0 := LFLOAT(cos(FLOAT(w0)));
   alpha := LFLOAT(sin(FLOAT(w0))) / (2.0 * q);
@@ -52,6 +57,11 @@ PROCEDURE DesignHP(VAR bq: Biquad; fc, fs, q: LONGREAL);
 VAR
   w0, alpha, cosw0, a0: LONGREAL;
 BEGIN
+  IF (fs < 1.0D-10) OR (q < 1.0D-10) THEN
+    ResetBiquad(bq);
+    bq.b0 := 1.0;
+    RETURN
+  END;
   w0 := 2.0 * Pi * fc / fs;
   cosw0 := LFLOAT(cos(FLOAT(w0)));
   alpha := LFLOAT(sin(FLOAT(w0))) / (2.0 * q);
@@ -102,6 +112,7 @@ PROCEDURE Lowpass(signal: ADDRESS; numSamples, sampleRate: CARDINAL;
                   cutoffHz: LONGREAL);
 VAR bq1, bq2: Biquad; fs: LONGREAL;
 BEGIN
+  IF numSamples = 0 THEN RETURN END;
   fs := LFLOAT(sampleRate);
   DesignLP(bq1, cutoffHz, fs, 0.5412);
   DesignLP(bq2, cutoffHz, fs, 1.3065);
@@ -112,6 +123,7 @@ PROCEDURE Highpass(signal: ADDRESS; numSamples, sampleRate: CARDINAL;
                    cutoffHz: LONGREAL);
 VAR bq1, bq2: Biquad; fs: LONGREAL;
 BEGIN
+  IF numSamples = 0 THEN RETURN END;
   fs := LFLOAT(sampleRate);
   DesignHP(bq1, cutoffHz, fs, 0.5412);
   DesignHP(bq2, cutoffHz, fs, 1.3065);
@@ -122,6 +134,7 @@ PROCEDURE Bandpass(signal: ADDRESS; numSamples, sampleRate: CARDINAL;
                    loHz, hiHz: LONGREAL);
 VAR lpBq1, lpBq2, hpBq1, hpBq2: Biquad; fs: LONGREAL;
 BEGIN
+  IF numSamples = 0 THEN RETURN END;
   fs := LFLOAT(sampleRate);
   DesignLP(lpBq1, hiHz, fs, 0.5412);
   DesignLP(lpBq2, hiHz, fs, 1.3065);

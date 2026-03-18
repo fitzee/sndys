@@ -10,7 +10,7 @@ IMPLEMENTATION MODULE HMM;
 
 FROM SYSTEM IMPORT ADDRESS, TSIZE;
 FROM Storage IMPORT ALLOCATE, DEALLOCATE;
-FROM MathLib IMPORT sqrt, ln, exp;
+FROM MathLib IMPORT ln, exp;
 
 CONST
   LogZero = -1.0D30;   (* proxy for -infinity in log space *)
@@ -24,12 +24,12 @@ TYPE
 
 PROCEDURE ElemR(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END ElemR;
 
 PROCEDURE ElemI(base: ADDRESS; i: CARDINAL): IntPtr;
 BEGIN
-  RETURN IntPtr(LONGCARD(base) + LONGCARD(i * TSIZE(INTEGER)))
+  RETURN IntPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(INTEGER)))
 END ElemI;
 
 (* ── Log-space helpers ──────────────────────────────── *)
@@ -38,8 +38,8 @@ PROCEDURE LogAdd(a, b: LONGREAL): LONGREAL;
 (* log(exp(a) + exp(b)) with numerical stability *)
 VAR diff: LONGREAL;
 BEGIN
-  IF a = LogZero THEN RETURN b END;
-  IF b = LogZero THEN RETURN a END;
+  IF a <= LogZero THEN RETURN b END;
+  IF b <= LogZero THEN RETURN a END;
   IF a > b THEN
     diff := b - a;
     IF diff < -30.0 THEN RETURN a END;
@@ -95,6 +95,12 @@ BEGIN
   IF nFeatures > MaxFeatures THEN h.numFeatures := MaxFeatures
   ELSE h.numFeatures := nFeatures END;
 
+  IF h.numStates = 0 THEN
+    h.numFeatures := 0;
+    h.trained := FALSE;
+    RETURN
+  END;
+
   logUniform := SafeLog(1.0 / LFLOAT(h.numStates));
 
   FOR s := 0 TO h.numStates - 1 DO
@@ -122,22 +128,27 @@ PROCEDURE TrainSupervised(VAR h: GaussHMM;
                           obs: ADDRESS; labels: ADDRESS;
                           numFrames: CARDINAL);
 VAR
-  t, s, s2, f, nf: CARDINAL;
-  count: ARRAY [0..31] OF CARDINAL;
-  transCount: ARRAY [0..31] OF ARRAY [0..31] OF CARDINAL;
+  t, s, s2, f, nf, ns: CARDINAL;
+  count: ARRAY [0..MaxStates-1] OF CARDINAL;
+  transCount: ARRAY [0..MaxStates-1] OF ARRAY [0..MaxStates-1] OF CARDINAL;
   transRowSum: CARDINAL;
   pLabel, pNextLabel: IntPtr;
   pObs: RealPtr;
   label, nextLabel: INTEGER;
+  firstLabel: INTEGER;
+  hasFirstLabel: BOOLEAN;
   diff: LONGREAL;
 BEGIN
+  ns := h.numStates;
   nf := h.numFeatures;
 
+  IF (ns = 0) OR (ns > MaxStates) OR (numFrames = 0) THEN RETURN END;
+
   (* Zero accumulators *)
-  FOR s := 0 TO h.numStates - 1 DO
+  FOR s := 0 TO ns - 1 DO
     count[s] := 0;
     h.logPi[s] := LogZero;
-    FOR s2 := 0 TO h.numStates - 1 DO
+    FOR s2 := 0 TO ns - 1 DO
       transCount[s][s2] := 0
     END;
     FOR f := 0 TO nf - 1 DO
@@ -146,23 +157,26 @@ BEGIN
     END
   END;
 
-  IF numFrames = 0 THEN
-    h.trained := TRUE;
-    RETURN
-  END;
-
-  (* Initial state probability: count first-frame labels *)
-  pLabel := ElemI(labels, 0);
-  label := pLabel^;
-  IF (label >= 0) AND (CARDINAL(label) < h.numStates) THEN
-    h.logPi[label] := SafeLog(1.0)
+  (* Scan forward for the first valid label to use as initial state.
+     If no valid label exists in the sequence, fall back to uniform logPi. *)
+  firstLabel := -1;
+  hasFirstLabel := FALSE;
+  FOR t := 0 TO numFrames - 1 DO
+    IF NOT hasFirstLabel THEN
+      pLabel := ElemI(labels, t);
+      label := pLabel^;
+      IF (label >= 0) AND (CARDINAL(label) < ns) THEN
+        firstLabel := label;
+        hasFirstLabel := TRUE
+      END
+    END
   END;
 
   (* Accumulate means and transition counts *)
   FOR t := 0 TO numFrames - 1 DO
     pLabel := ElemI(labels, t);
     label := pLabel^;
-    IF (label >= 0) AND (CARDINAL(label) < h.numStates) THEN
+    IF (label >= 0) AND (CARDINAL(label) < ns) THEN
       s := CARDINAL(label);
       INC(count[s]);
 
@@ -176,7 +190,7 @@ BEGIN
       IF t < numFrames - 1 THEN
         pNextLabel := ElemI(labels, t + 1);
         nextLabel := pNextLabel^;
-        IF (nextLabel >= 0) AND (CARDINAL(nextLabel) < h.numStates) THEN
+        IF (nextLabel >= 0) AND (CARDINAL(nextLabel) < ns) THEN
           INC(transCount[s][nextLabel])
         END
       END
@@ -184,7 +198,7 @@ BEGIN
   END;
 
   (* Compute means *)
-  FOR s := 0 TO h.numStates - 1 DO
+  FOR s := 0 TO ns - 1 DO
     IF count[s] > 0 THEN
       FOR f := 0 TO nf - 1 DO
         h.means[s][f] := h.means[s][f] / LFLOAT(count[s])
@@ -196,7 +210,7 @@ BEGIN
   FOR t := 0 TO numFrames - 1 DO
     pLabel := ElemI(labels, t);
     label := pLabel^;
-    IF (label >= 0) AND (CARDINAL(label) < h.numStates) THEN
+    IF (label >= 0) AND (CARDINAL(label) < ns) THEN
       s := CARDINAL(label);
       FOR f := 0 TO nf - 1 DO
         pObs := ElemR(obs, t * nf + f);
@@ -206,7 +220,7 @@ BEGIN
     END
   END;
 
-  FOR s := 0 TO h.numStates - 1 DO
+  FOR s := 0 TO ns - 1 DO
     IF count[s] > 1 THEN
       FOR f := 0 TO nf - 1 DO
         h.vars[s][f] := h.vars[s][f] / LFLOAT(count[s]);
@@ -222,13 +236,13 @@ BEGIN
   END;
 
   (* Compute log transition probabilities *)
-  FOR s := 0 TO h.numStates - 1 DO
+  FOR s := 0 TO ns - 1 DO
     transRowSum := 0;
-    FOR s2 := 0 TO h.numStates - 1 DO
+    FOR s2 := 0 TO ns - 1 DO
       transRowSum := transRowSum + transCount[s][s2]
     END;
     IF transRowSum > 0 THEN
-      FOR s2 := 0 TO h.numStates - 1 DO
+      FOR s2 := 0 TO ns - 1 DO
         IF transCount[s][s2] > 0 THEN
           h.logA[s][s2] := SafeLog(LFLOAT(transCount[s][s2])
                                    / LFLOAT(transRowSum))
@@ -238,20 +252,25 @@ BEGIN
       END
     ELSE
       (* No transitions from this state — uniform *)
-      FOR s2 := 0 TO h.numStates - 1 DO
-        h.logA[s][s2] := SafeLog(1.0 / LFLOAT(h.numStates))
+      FOR s2 := 0 TO ns - 1 DO
+        h.logA[s][s2] := SafeLog(1.0 / LFLOAT(ns))
       END
     END
   END;
 
-  (* Compute log initial probabilities *)
-  (* Use first-frame label count; for supervised with single sequence,
-     this is typically a single state. For robustness, count all. *)
-  h.logPi[label] := SafeLog(1.0);
-  (* Other states get a small probability *)
-  FOR s := 0 TO h.numStates - 1 DO
-    IF INTEGER(s) # label THEN
-      h.logPi[s] := SafeLog(Eps)
+  (* Compute log initial probabilities.
+     Use the first valid label in the sequence as the initial state.
+     If no valid label was found, fall back to uniform prior. *)
+  IF hasFirstLabel THEN
+    h.logPi[firstLabel] := SafeLog(1.0);
+    FOR s := 0 TO ns - 1 DO
+      IF INTEGER(s) # firstLabel THEN
+        h.logPi[s] := SafeLog(Eps)
+      END
+    END
+  ELSE
+    FOR s := 0 TO ns - 1 DO
+      h.logPi[s] := SafeLog(1.0 / LFLOAT(ns))
     END
   END;
 
@@ -271,26 +290,31 @@ VAR
 
   (* Viterbi trellis — allocated on heap for large sequences *)
   viterbi: ADDRESS;    (* numFrames x numStates LONGREALs *)
-  backptr: ADDRESS;    (* numFrames x numStates CARDINALs *)
-  pV, pB: RealPtr;
+  backptr: ADDRESS;    (* numFrames x numStates INTEGERs *)
+  viterbiSize, backptrSize: CARDINAL;
+  pV: RealPtr;
+  pBI: IntPtr;
   bestState: CARDINAL;
   bestFinal: LONGREAL;
 BEGIN
   ns := h.numStates;
+  IF ns > MaxStates THEN ns := MaxStates END;
 
-  IF numFrames = 0 THEN RETURN LogZero END;
+  IF (ns = 0) OR (numFrames = 0) THEN RETURN LogZero END;
 
   (* Allocate trellis *)
-  ALLOCATE(viterbi, numFrames * ns * TSIZE(LONGREAL));
-  ALLOCATE(backptr, numFrames * ns * TSIZE(LONGREAL));
+  viterbiSize := numFrames * ns * TSIZE(LONGREAL);
+  backptrSize := numFrames * ns * TSIZE(INTEGER);
+  ALLOCATE(viterbi, viterbiSize);
+  ALLOCATE(backptr, backptrSize);
 
   (* Initialize: t=0 *)
   FOR s := 0 TO ns - 1 DO
     emLogProb := LogEmission(h, s, obs, 0);
-    pV := ElemR(viterbi, 0 * ns + s);
+    pV := ElemR(viterbi, s);
     pV^ := h.logPi[s] + emLogProb;
-    pB := ElemR(backptr, 0 * ns + s);
-    pB^ := 0.0
+    pBI := ElemI(backptr, s);
+    pBI^ := 0
   END;
 
   (* Recurse: t=1..numFrames-1 *)
@@ -311,8 +335,8 @@ BEGIN
 
       pV := ElemR(viterbi, t * ns + s);
       pV^ := bestLogProb + emLogProb;
-      pB := ElemR(backptr, t * ns + s);
-      pB^ := LFLOAT(bestPrev)
+      pBI := ElemI(backptr, t * ns + s);
+      pBI^ := INTEGER(bestPrev)
     END
   END;
 
@@ -332,16 +356,16 @@ BEGIN
   pPath^ := INTEGER(bestState);
   t := numFrames - 1;
   WHILE t > 0 DO
-    pB := ElemR(backptr, t * ns + bestState);
-    bestState := TRUNC(pB^);
+    pBI := ElemI(backptr, t * ns + bestState);
+    bestState := CARDINAL(pBI^);
     DEC(t);
     pPath := ElemI(path, t);
     pPath^ := INTEGER(bestState)
   END;
 
   (* Cleanup *)
-  DEALLOCATE(viterbi, 0);
-  DEALLOCATE(backptr, 0);
+  DEALLOCATE(viterbi, viterbiSize);
+  DEALLOCATE(backptr, backptrSize);
 
   RETURN bestFinal
 END Decode;
@@ -363,11 +387,12 @@ VAR
   emLogProb, logSum, total: LONGREAL;
 
   (* Two columns for forward pass — swap each step *)
-  prev, curr: ARRAY [0..31] OF LONGREAL;
+  prev, curr: ARRAY [0..MaxStates-1] OF LONGREAL;
 BEGIN
   ns := h.numStates;
+  IF ns > MaxStates THEN ns := MaxStates END;
 
-  IF numFrames = 0 THEN RETURN LogZero END;
+  IF (ns = 0) OR (numFrames = 0) THEN RETURN LogZero END;
 
   (* Initialize: t=0 *)
   FOR s := 0 TO ns - 1 DO

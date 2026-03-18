@@ -56,6 +56,11 @@ BEGIN
   nc := p.numComponents;
   p.numFeatures := nf;
 
+  IF numSamples = 0 THEN
+    p.fitted := TRUE;
+    RETURN
+  END;
+
   (* Allocate mean *)
   meanSize := nf * TSIZE(LONGREAL);
   ALLOCATE(p.mean, meanSize);
@@ -109,8 +114,10 @@ BEGIN
       sum := sum + val * val
     END;
     norm := LFLOAT(sqrt(FLOAT(sum)));
-    FOR i := 0 TO nf - 1 DO
-      SetVal(vec, i, GetVal(vec, i) / norm)
+    IF norm > 1.0D-15 THEN
+      FOR i := 0 TO nf - 1 DO
+        SetVal(vec, i, GetVal(vec, i) / norm)
+      END
     END;
 
     (* Power iteration: 100 iterations *)

@@ -10,12 +10,12 @@ TYPE
 
 PROCEDURE ElemR(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END ElemR;
 
 PROCEDURE ElemI(base: ADDRESS; i: CARDINAL): IntPtr;
 BEGIN
-  RETURN IntPtr(LONGCARD(base) + LONGCARD(i * TSIZE(INTEGER)))
+  RETURN IntPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(INTEGER)))
 END ElemI;
 
 (* Simple LCG pseudo-random for deterministic synthetic generation *)
@@ -67,7 +67,8 @@ PROCEDURE Oversample(data: ADDRESS; labels: ADDRESS;
                      VAR newData: ADDRESS; VAR newLabels: ADDRESS;
                      VAR newNumSamples: CARDINAL);
 VAR
-  c, i, f, idx, neighborIdx: CARDINAL;
+  c, i, f, feat, idx, neighborIdx: CARDINAL;
+  found: BOOLEAN;
   classCount: ARRAY [0..31] OF CARDINAL;
   maxCount, synthNeeded, synthTotal, outIdx: CARDINAL;
   pSrc, pNbr, pDst: RealPtr;
@@ -79,7 +80,7 @@ BEGIN
   newNumSamples := 0;
   seed := 42;
 
-  IF (numSamples = 0) OR (numClasses = 0) THEN RETURN END;
+  IF (numSamples = 0) OR (numClasses = 0) OR (numClasses > 32) THEN RETURN END;
 
   (* Count samples per class *)
   FOR c := 0 TO numClasses - 1 DO classCount[c] := 0 END;
@@ -125,18 +126,18 @@ BEGIN
   outIdx := numSamples;
 
   FOR c := 0 TO numClasses - 1 DO
-    IF classCount[c] < maxCount THEN
+    IF (classCount[c] < maxCount) AND (classCount[c] > 0) THEN
       synthNeeded := maxCount - classCount[c];
 
       (* For each synthetic sample: pick a random minority sample,
          find its nearest same-class neighbor, interpolate *)
       FOR i := 0 TO synthNeeded - 1 DO
         (* Pick a source sample from class c *)
-        (* Cycle through class c samples *)
-        idx := 0;
         (* Find the (i MOD classCount[c])-th sample of class c *)
         f := 0;
-        FOR idx := 0 TO numSamples - 1 DO
+        idx := 0;
+        found := FALSE;
+        WHILE (idx < numSamples) AND (NOT found) DO
           pLSrc := ElemI(labels, idx);
           IF pLSrc^ = INTEGER(c) THEN
             IF f = i MOD classCount[c] THEN
@@ -148,30 +149,38 @@ BEGIN
               (* Interpolate: synth = source + lambda * (neighbor - source) *)
               lambda := NextRand();
 
-              FOR f := 0 TO numFeatures - 1 DO
-                pSrc := ElemR(data, idx * numFeatures + f);
-                pNbr := ElemR(data, neighborIdx * numFeatures + f);
-                pDst := ElemR(newData, outIdx * numFeatures + f);
+              FOR feat := 0 TO numFeatures - 1 DO
+                pSrc := ElemR(data, idx * numFeatures + feat);
+                pNbr := ElemR(data, neighborIdx * numFeatures + feat);
+                pDst := ElemR(newData, outIdx * numFeatures + feat);
                 pDst^ := pSrc^ + lambda * (pNbr^ - pSrc^)
               END;
 
               pLDst := ElemI(newLabels, outIdx);
               pLDst^ := INTEGER(c);
               INC(outIdx);
-              idx := numSamples  (* break *)
+              found := TRUE
             END;
             INC(f)
-          END
+          END;
+          INC(idx)
         END
       END
     END
   END
 END Oversample;
 
-PROCEDURE FreeOversampled(VAR data: ADDRESS; VAR labels: ADDRESS);
+PROCEDURE FreeOversampled(VAR data: ADDRESS; VAR labels: ADDRESS;
+                          numSamples, numFeatures: CARDINAL);
 BEGIN
-  IF data # NIL THEN DEALLOCATE(data, 0); data := NIL END;
-  IF labels # NIL THEN DEALLOCATE(labels, 0); labels := NIL END
+  IF data # NIL THEN
+    DEALLOCATE(data, numSamples * numFeatures * TSIZE(LONGREAL));
+    data := NIL
+  END;
+  IF labels # NIL THEN
+    DEALLOCATE(labels, numSamples * TSIZE(INTEGER));
+    labels := NIL
+  END
 END FreeOversampled;
 
 END SMOTE.

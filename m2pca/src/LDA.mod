@@ -6,7 +6,7 @@ FROM MathLib IMPORT sqrt;
 
 TYPE
   LRPtr = POINTER TO LONGREAL;
-  CardPtr = POINTER TO CARDINAL;
+  IntPtr = POINTER TO INTEGER;
 
 PROCEDURE Elem(base: ADDRESS; index: CARDINAL): LRPtr;
 VAR
@@ -32,13 +32,13 @@ BEGIN
   ptr^ := val
 END SetVal;
 
-PROCEDURE GetLabel(base: ADDRESS; index: CARDINAL): CARDINAL;
+PROCEDURE GetLabel(base: ADDRESS; index: CARDINAL): INTEGER;
 VAR
   addr: LONGCARD;
-  ptr: CardPtr;
+  ptr: IntPtr;
 BEGIN
-  addr := LONGCARD(base) + LONGCARD(index) * LONGCARD(TSIZE(CARDINAL));
-  ptr := CardPtr(addr);
+  addr := LONGCARD(base) + LONGCARD(index) * LONGCARD(TSIZE(INTEGER));
+  ptr := IntPtr(addr);
   RETURN ptr^
 END GetLabel;
 
@@ -70,7 +70,7 @@ VAR
   classMeansSize, classCountsSize: CARDINAL;
   swSize, sbSize, matSize, vecSize, diffSize: CARDINAL;
   projSize, meanSize: CARDINAL;
-  label: CARDINAL;
+  label: INTEGER;
   countVal: LONGREAL;
   countPtr: LRPtr;
 BEGIN
@@ -86,6 +86,11 @@ BEGIN
     l.numComponents := maxComp
   END;
   nc := l.numComponents;
+
+  IF numSamples = 0 THEN
+    l.fitted := TRUE;
+    RETURN
+  END;
 
   (* Allocate global mean *)
   meanSize := nf * TSIZE(LONGREAL);
@@ -119,10 +124,12 @@ BEGIN
   (* Accumulate class sums *)
   FOR i := 0 TO numSamples - 1 DO
     label := GetLabel(labels, i);
-    SetVal(classCounts, label, GetVal(classCounts, label) + 1.0);
-    FOR j := 0 TO nf - 1 DO
-      val := GetVal(classMeans, label * nf + j) + GetVal(data, i * nf + j);
-      SetVal(classMeans, label * nf + j, val)
+    IF (label >= 0) AND (CARDINAL(label) < numClasses) THEN
+      SetVal(classCounts, CARDINAL(label), GetVal(classCounts, CARDINAL(label)) + 1.0);
+      FOR j := 0 TO nf - 1 DO
+        val := GetVal(classMeans, CARDINAL(label) * nf + j) + GetVal(data, i * nf + j);
+        SetVal(classMeans, CARDINAL(label) * nf + j, val)
+      END
     END
   END;
 
@@ -146,12 +153,14 @@ BEGIN
   (* Compute Sw = sum over samples of (x - mean_c)(x - mean_c)^T *)
   FOR i := 0 TO numSamples - 1 DO
     label := GetLabel(labels, i);
-    FOR j := 0 TO nf - 1 DO
-      FOR k := 0 TO nf - 1 DO
-        val := GetVal(sw, j * nf + k)
-              + (GetVal(data, i * nf + j) - GetVal(classMeans, label * nf + j))
-              * (GetVal(data, i * nf + k) - GetVal(classMeans, label * nf + k));
-        SetVal(sw, j * nf + k, val)
+    IF (label >= 0) AND (CARDINAL(label) < numClasses) THEN
+      FOR j := 0 TO nf - 1 DO
+        FOR k := 0 TO nf - 1 DO
+          val := GetVal(sw, j * nf + k)
+                + (GetVal(data, i * nf + j) - GetVal(classMeans, CARDINAL(label) * nf + j))
+                * (GetVal(data, i * nf + k) - GetVal(classMeans, CARDINAL(label) * nf + k));
+          SetVal(sw, j * nf + k, val)
+        END
       END
     END
   END;
@@ -236,21 +245,30 @@ BEGIN
       END
     END;
 
-    (* Scale pivot row *)
+    (* Scale pivot row — skip if near-singular *)
     val := GetVal(mat, i * 2 * nf + i);
-    FOR j := 0 TO 2 * nf - 1 DO
-      SetVal(mat, i * 2 * nf + j, GetVal(mat, i * 2 * nf + j) / val)
-    END;
+    IF val < 0.0 THEN norm := -val ELSE norm := val END;
+    IF norm >= 1.0D-15 THEN
+      FOR j := 0 TO 2 * nf - 1 DO
+        SetVal(mat, i * 2 * nf + j, GetVal(mat, i * 2 * nf + j) / val)
+      END;
 
-    (* Eliminate column *)
-    FOR k := 0 TO nf - 1 DO
-      IF k # i THEN
-        val := GetVal(mat, k * 2 * nf + i);
-        FOR j := 0 TO 2 * nf - 1 DO
-          dot := GetVal(mat, k * 2 * nf + j) - val * GetVal(mat, i * 2 * nf + j);
-          SetVal(mat, k * 2 * nf + j, dot)
+      (* Eliminate column *)
+      FOR k := 0 TO nf - 1 DO
+        IF k # i THEN
+          val := GetVal(mat, k * 2 * nf + i);
+          FOR j := 0 TO 2 * nf - 1 DO
+            dot := GetVal(mat, k * 2 * nf + j) - val * GetVal(mat, i * 2 * nf + j);
+            SetVal(mat, k * 2 * nf + j, dot)
+          END
         END
       END
+    ELSE
+      (* Near-singular row: set identity on left, zero on right (inverse) *)
+      FOR j := 0 TO 2 * nf - 1 DO
+        SetVal(mat, i * 2 * nf + j, 0.0)
+      END;
+      SetVal(mat, i * 2 * nf + i, 1.0)
     END
   END;
 
@@ -263,6 +281,19 @@ BEGIN
       END;
       SetVal(sw, i * nf + j, sum)
     END
+  END;
+
+  (* Guard: if nc = 0 then no components to compute *)
+  IF nc = 0 THEN
+    DEALLOCATE(diff, diffSize);
+    DEALLOCATE(mat, matSize);
+    DEALLOCATE(sb, sbSize);
+    DEALLOCATE(sw, swSize);
+    DEALLOCATE(classCounts, classCountsSize);
+    DEALLOCATE(classMeans, classMeansSize);
+    l.projection := NIL;
+    l.fitted := TRUE;
+    RETURN
   END;
 
   (* Now sw holds M = Sw^{-1} * Sb. Do power iteration + deflation. *)

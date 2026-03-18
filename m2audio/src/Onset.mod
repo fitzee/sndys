@@ -16,7 +16,7 @@ TYPE
 
 PROCEDURE Elem(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END Elem;
 
 PROCEDURE DetectOnsets(signal: ADDRESS; numSamples, sampleRate: CARDINAL;
@@ -98,8 +98,8 @@ BEGIN
     pF^ := fVal
   END;
 
-  DEALLOCATE(complexBuf, 0);
-  DEALLOCATE(prevSpec, 0);
+  DEALLOCATE(complexBuf, 2 * fftSize * TSIZE(LONGREAL));
+  DEALLOCATE(prevSpec, fftHalf * TSIZE(LONGREAL));
 
   (* Peak pick with adaptive threshold *)
   FOR t := 1 TO numFrames - 2 DO
@@ -143,7 +143,7 @@ BEGIN
     END
   END;
 
-  DEALLOCATE(flux, 0)
+  DEALLOCATE(flux, numFrames * TSIZE(LONGREAL))
 END DetectOnsets;
 
 END Onset.

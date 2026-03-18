@@ -8,7 +8,7 @@ TYPE
 
 PROCEDURE Elem(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END Elem;
 
 PROCEDURE ComputeDeltas(featureMatrix: ADDRESS;
@@ -18,6 +18,11 @@ VAR
   t, f: CARDINAL;
   pCur, pPrev, pDst: RealPtr;
 BEGIN
+  IF (numFrames = 0) OR (numFeatures = 0) THEN
+    deltaMatrix := NIL;
+    RETURN
+  END;
+
   ALLOCATE(deltaMatrix, numFrames * numFeatures * TSIZE(LONGREAL));
 
   (* First frame: delta = 0 *)
@@ -45,6 +50,11 @@ VAR
   outCols: CARDINAL;
   pSrc, pDst, pCur, pPrev: RealPtr;
 BEGIN
+  IF (numFrames = 0) OR (numFeatures = 0) THEN
+    combined := NIL;
+    RETURN
+  END;
+
   outCols := 2 * numFeatures;
   ALLOCATE(combined, numFrames * outCols * TSIZE(LONGREAL));
 
@@ -70,10 +80,10 @@ BEGIN
   END
 END CombineWithDeltas;
 
-PROCEDURE FreeDelta(VAR matrix: ADDRESS);
+PROCEDURE FreeDelta(VAR matrix: ADDRESS; numElements: CARDINAL);
 BEGIN
   IF matrix # NIL THEN
-    DEALLOCATE(matrix, 0);
+    DEALLOCATE(matrix, numElements * TSIZE(LONGREAL));
     matrix := NIL
   END
 END FreeDelta;

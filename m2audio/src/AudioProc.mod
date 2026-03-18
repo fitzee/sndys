@@ -10,7 +10,7 @@ TYPE
 
 PROCEDURE Elem(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END Elem;
 
 PROCEDURE Trim(signal: ADDRESS; numSamples, sampleRate: CARDINAL;
@@ -20,9 +20,16 @@ VAR
   startIdx, endIdx, i: CARDINAL;
   pSrc, pDst: RealPtr;
 BEGIN
+  IF numSamples = 0 THEN
+    output := NIL; outSamples := 0; RETURN
+  END;
+  IF startSec < 0.0 THEN startSec := 0.0 END;
+  IF endSec < 0.0 THEN endSec := 0.0 END;
   startIdx := TRUNC(startSec * LFLOAT(sampleRate));
   endIdx := TRUNC(endSec * LFLOAT(sampleRate));
-  IF startIdx >= numSamples THEN startIdx := numSamples - 1 END;
+  IF startIdx >= numSamples THEN
+    output := NIL; outSamples := 0; RETURN
+  END;
   IF endIdx > numSamples THEN endIdx := numSamples END;
   IF endIdx <= startIdx THEN
     output := NIL; outSamples := 0; RETURN
@@ -69,6 +76,7 @@ VAR
   maxAbs, val, scale: LONGREAL;
   p: RealPtr;
 BEGIN
+  IF numSamples = 0 THEN RETURN END;
   maxAbs := 0.0;
   FOR i := 0 TO numSamples - 1 DO
     p := Elem(signal, i);
@@ -90,6 +98,7 @@ VAR
   sum, rms, scale: LONGREAL;
   p: RealPtr;
 BEGIN
+  IF numSamples = 0 THEN RETURN END;
   sum := 0.0;
   FOR i := 0 TO numSamples - 1 DO
     p := Elem(signal, i);
@@ -110,7 +119,10 @@ VAR
   i, fadeSamples: CARDINAL;
   p: RealPtr;
 BEGIN
+  IF numSamples = 0 THEN RETURN END;
+  IF fadeSec <= 0.0 THEN RETURN END;
   fadeSamples := TRUNC(fadeSec * LFLOAT(sampleRate));
+  IF fadeSamples = 0 THEN RETURN END;
   IF fadeSamples > numSamples THEN fadeSamples := numSamples END;
   FOR i := 0 TO fadeSamples - 1 DO
     p := Elem(signal, i);
@@ -124,7 +136,10 @@ VAR
   i, fadeSamples, startIdx: CARDINAL;
   p: RealPtr;
 BEGIN
+  IF numSamples = 0 THEN RETURN END;
+  IF fadeSec <= 0.0 THEN RETURN END;
   fadeSamples := TRUNC(fadeSec * LFLOAT(sampleRate));
+  IF fadeSamples = 0 THEN RETURN END;
   IF fadeSamples > numSamples THEN fadeSamples := numSamples END;
   startIdx := numSamples - fadeSamples;
   FOR i := 0 TO fadeSamples - 1 DO
@@ -139,6 +154,7 @@ VAR
   tmp: LONGREAL;
   pI, pJ: RealPtr;
 BEGIN
+  IF numSamples = 0 THEN RETURN END;
   IF numSamples < 2 THEN RETURN END;
   i := 0;
   j := numSamples - 1;
@@ -159,7 +175,9 @@ PROCEDURE GenerateSine(freq: LONGREAL; durationSec: LONGREAL;
 VAR
   i: CARDINAL; p: RealPtr; phase: LONGREAL;
 BEGIN
+  IF durationSec <= 0.0 THEN output := NIL; outSamples := 0; RETURN END;
   outSamples := TRUNC(durationSec * LFLOAT(sampleRate));
+  IF outSamples = 0 THEN output := NIL; RETURN END;
   ALLOCATE(output, outSamples * TSIZE(LONGREAL));
   FOR i := 0 TO outSamples - 1 DO
     phase := TwoPi * freq * LFLOAT(i) / LFLOAT(sampleRate);
@@ -175,7 +193,9 @@ VAR
   i: CARDINAL; p: RealPtr;
   t, freq, phase: LONGREAL;
 BEGIN
+  IF durationSec <= 0.0 THEN output := NIL; outSamples := 0; RETURN END;
   outSamples := TRUNC(durationSec * LFLOAT(sampleRate));
+  IF outSamples = 0 THEN output := NIL; RETURN END;
   ALLOCATE(output, outSamples * TSIZE(LONGREAL));
   FOR i := 0 TO outSamples - 1 DO
     t := LFLOAT(i) / LFLOAT(sampleRate);
@@ -193,7 +213,9 @@ VAR
   i: CARDINAL; p: RealPtr;
   seed: LONGCARD; val: LONGREAL;
 BEGIN
+  IF durationSec <= 0.0 THEN output := NIL; outSamples := 0; RETURN END;
   outSamples := TRUNC(durationSec * LFLOAT(sampleRate));
+  IF outSamples = 0 THEN output := NIL; RETURN END;
   ALLOCATE(output, outSamples * TSIZE(LONGREAL));
   seed := 12345;
   FOR i := 0 TO outSamples - 1 DO
@@ -212,7 +234,11 @@ VAR
   clickInterval, nextClick: LONGREAL;
   clickSamples: CARDINAL;
 BEGIN
+  IF (durationSec <= 0.0) OR (bpm <= 0.0) THEN
+    output := NIL; outSamples := 0; RETURN
+  END;
   outSamples := TRUNC(durationSec * LFLOAT(sampleRate));
+  IF outSamples = 0 THEN output := NIL; RETURN END;
   ALLOCATE(output, outSamples * TSIZE(LONGREAL));
 
   (* Zero fill *)
@@ -239,10 +265,10 @@ BEGIN
   END
 END GenerateClick;
 
-PROCEDURE FreeProc(VAR output: ADDRESS);
+PROCEDURE FreeProc(VAR output: ADDRESS; numSamples: CARDINAL);
 BEGIN
   IF output # NIL THEN
-    DEALLOCATE(output, 0);
+    DEALLOCATE(output, numSamples * TSIZE(LONGREAL));
     output := NIL
   END
 END FreeProc;

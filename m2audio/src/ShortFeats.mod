@@ -31,7 +31,7 @@ TYPE
 
 PROCEDURE Elem(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END Elem;
 
 (* ---- DC normalization (matches pyAudioAnalysis dc_normalize) ---- *)
@@ -424,13 +424,13 @@ VAR
   i, j, chromaIdx, nBins: CARDINAL;
   freq, semitone, specSum, m, s, diff: LONGREAL;
   p: RealPtr;
-  chromaRaw: ARRAY [0..127] OF LONGREAL;  (* accumulator before folding *)
-  binCount: ARRAY [0..127] OF CARDINAL;
+  chromaRaw: ARRAY [0..255] OF LONGREAL;  (* accumulator before folding *)
+  binCount: ARRAY [0..255] OF CARDINAL;
   maxChroma: INTEGER;
   final12: ARRAY [0..11] OF LONGREAL;
   halfSr: LONGREAL;
-  numChromaArr: ARRAY [0..4095] OF INTEGER;
-  numFreqsPerChroma: ARRAY [0..127] OF CARDINAL;
+  numChromaArr: ARRAY [0..8191] OF INTEGER;
+  numFreqsPerChroma: ARRAY [0..255] OF CARDINAL;
   maxIdx: INTEGER;
   newD, rows, r, c: CARDINAL;
   c2: ARRAY [0..1023] OF LONGREAL;  (* folded chroma *)
@@ -459,7 +459,7 @@ BEGIN
   END;
 
   (* Build power spectrum and map to chroma bins *)
-  FOR i := 0 TO 127 DO
+  FOR i := 0 TO 255 DO
     chromaRaw[i] := 0.0;
     binCount[i] := 0;
     numFreqsPerChroma[i] := 0
@@ -467,7 +467,7 @@ BEGIN
 
   (* Count frequencies per chroma bin *)
   FOR i := 0 TO fftLen - 1 DO
-    IF (numChromaArr[i] >= 0) AND (numChromaArr[i] < 128) THEN
+    IF (numChromaArr[i] >= 0) AND (numChromaArr[i] < 256) THEN
       INC(numFreqsPerChroma[numChromaArr[i]])
     END
   END;
@@ -477,7 +477,7 @@ BEGIN
   specSum := 0.0;
   FOR i := 0 TO fftLen - 1 DO
     p := Elem(fftMag, i);
-    IF (numChromaArr[i] >= 0) AND (numChromaArr[i] < 128) THEN
+    IF (numChromaArr[i] >= 0) AND (numChromaArr[i] < 256) THEN
       chromaRaw[numChromaArr[i]] := p^ * p^  (* overwrites, not accumulates *)
     END;
     specSum := specSum + p^ * p^
@@ -486,7 +486,7 @@ BEGIN
   (* Divide each position by num_freqs_per_chroma for that chroma index,
      matching: C /= num_freqs_per_chroma[num_chroma] *)
   FOR i := 0 TO fftLen - 1 DO
-    IF (numChromaArr[i] >= 0) AND (numChromaArr[i] < 128) THEN
+    IF (numChromaArr[i] >= 0) AND (numChromaArr[i] < 256) THEN
       IF numFreqsPerChroma[numChromaArr[i]] > 0 THEN
         chromaRaw[numChromaArr[i]] := chromaRaw[numChromaArr[i]]
           / LFLOAT(numFreqsPerChroma[numChromaArr[i]])
@@ -505,7 +505,7 @@ BEGIN
   END;
 
   FOR i := 0 TO newD - 1 DO
-    IF i < 128 THEN
+    IF i < 256 THEN
       final12[i MOD 12] := final12[i MOD 12] + chromaRaw[i]
     END
   END;
@@ -638,7 +638,7 @@ BEGIN
     (* Direct DFT at exact window size — no zero-padding artifacts.
        Computes first numFft magnitude bins, normalized by numFft. *)
     DirectMagnitude(
-      ADDRESS(LONGCARD(normSignal) + LONGCARD(frameStart * TSIZE(LONGREAL))),
+      ADDRESS(LONGCARD(normSignal) + LONGCARD(frameStart) * LONGCARD(TSIZE(LONGREAL))),
       winSizeSamp, magBuf, numFft, TRUE);
 
     (* --- Compute features --- *)
@@ -647,19 +647,19 @@ BEGIN
        but pyAudio uses DC-normalized signal *)
     pMat := Elem(featureMatrix, frameIdx * NumFeatures + 0);
     pMat^ := ComputeZCR(
-      ADDRESS(LONGCARD(normSignal) + LONGCARD(frameStart * TSIZE(LONGREAL))),
+      ADDRESS(LONGCARD(normSignal) + LONGCARD(frameStart) * LONGCARD(TSIZE(LONGREAL))),
       winSizeSamp);
 
     (* 1: Energy *)
     pMat := Elem(featureMatrix, frameIdx * NumFeatures + 1);
     pMat^ := ComputeEnergy(
-      ADDRESS(LONGCARD(normSignal) + LONGCARD(frameStart * TSIZE(LONGREAL))),
+      ADDRESS(LONGCARD(normSignal) + LONGCARD(frameStart) * LONGCARD(TSIZE(LONGREAL))),
       winSizeSamp);
 
     (* 2: Energy Entropy *)
     pMat := Elem(featureMatrix, frameIdx * NumFeatures + 2);
     pMat^ := ComputeEnergyEntropy(
-      ADDRESS(LONGCARD(normSignal) + LONGCARD(frameStart * TSIZE(LONGREAL))),
+      ADDRESS(LONGCARD(normSignal) + LONGCARD(frameStart) * LONGCARD(TSIZE(LONGREAL))),
       winSizeSamp, EntropySubBands);
 
     (* 3-4: Spectral Centroid and Spread *)
@@ -717,10 +717,10 @@ BEGIN
   ok := TRUE;
 
   (* Free working buffers *)
-  DEALLOCATE(fbank, 0);
-  DEALLOCATE(normSignal, 0);
-  DEALLOCATE(magBuf, 0);
-  DEALLOCATE(prevMag, 0)
+  DEALLOCATE(fbank, fbankSize);
+  DEALLOCATE(normSignal, numSamples * TSIZE(LONGREAL));
+  DEALLOCATE(magBuf, numFft * TSIZE(LONGREAL));
+  DEALLOCATE(prevMag, numFft * TSIZE(LONGREAL))
 END Extract;
 
 (* ---- Fast Extract using radix-2 FFT ---- *)
@@ -823,17 +823,17 @@ BEGIN
 
     pMat := Elem(featureMatrix, frameIdx * NumFeatures + 0);
     pMat^ := ComputeZCR(
-      ADDRESS(LONGCARD(normSignal) + LONGCARD(frameStart * TSIZE(LONGREAL))),
+      ADDRESS(LONGCARD(normSignal) + LONGCARD(frameStart) * LONGCARD(TSIZE(LONGREAL))),
       winSizeSamp);
 
     pMat := Elem(featureMatrix, frameIdx * NumFeatures + 1);
     pMat^ := ComputeEnergy(
-      ADDRESS(LONGCARD(normSignal) + LONGCARD(frameStart * TSIZE(LONGREAL))),
+      ADDRESS(LONGCARD(normSignal) + LONGCARD(frameStart) * LONGCARD(TSIZE(LONGREAL))),
       winSizeSamp);
 
     pMat := Elem(featureMatrix, frameIdx * NumFeatures + 2);
     pMat^ := ComputeEnergyEntropy(
-      ADDRESS(LONGCARD(normSignal) + LONGCARD(frameStart * TSIZE(LONGREAL))),
+      ADDRESS(LONGCARD(normSignal) + LONGCARD(frameStart) * LONGCARD(TSIZE(LONGREAL))),
       winSizeSamp, EntropySubBands);
 
     ComputeSpectralCentroidSpread(magBuf, numFft, sampleRate,
@@ -883,17 +883,17 @@ BEGIN
   numFrames := totalFrames;
   ok := TRUE;
 
-  DEALLOCATE(fbank, 0);
-  DEALLOCATE(normSignal, 0);
-  DEALLOCATE(complexBuf, 0);
-  DEALLOCATE(magBuf, 0);
-  DEALLOCATE(prevMag, 0)
+  DEALLOCATE(fbank, fbankSize);
+  DEALLOCATE(normSignal, numSamples * TSIZE(LONGREAL));
+  DEALLOCATE(complexBuf, 2 * fftSize * TSIZE(LONGREAL));
+  DEALLOCATE(magBuf, numFft * TSIZE(LONGREAL));
+  DEALLOCATE(prevMag, numFft * TSIZE(LONGREAL))
 END ExtractFast;
 
-PROCEDURE FreeFeatures(VAR featureMatrix: ADDRESS);
+PROCEDURE FreeFeatures(VAR featureMatrix: ADDRESS; numFrames: CARDINAL);
 BEGIN
   IF featureMatrix # NIL THEN
-    DEALLOCATE(featureMatrix, 0);
+    DEALLOCATE(featureMatrix, numFrames * NumFeatures * TSIZE(LONGREAL));
     featureMatrix := NIL
   END
 END FreeFeatures;

@@ -24,7 +24,9 @@ PROCEDURE CombineWithDeltas(featureMatrix: ADDRESS;
                             numFrames, numFeatures: CARDINAL;
                             VAR combined: ADDRESS);
 
-(* FreeDelta — deallocate a delta or combined matrix. *)
-PROCEDURE FreeDelta(VAR matrix: ADDRESS);
+(* FreeDelta — deallocate a delta or combined matrix.
+   numElements = numFrames * numFeatures for delta,
+   or numFrames * 2 * numFeatures for combined. *)
+PROCEDURE FreeDelta(VAR matrix: ADDRESS; numElements: CARDINAL);
 
 END Delta.

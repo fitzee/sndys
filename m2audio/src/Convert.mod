@@ -43,9 +43,11 @@ PROCEDURE ConvertToWav(inPath: ARRAY OF CHAR;
 VAR
   cmd: ARRAY [0..1023] OF CHAR;
   rateStr: ARRAY [0..15] OF CHAR;
+  quote: ARRAY [0..1] OF CHAR;
   result: INTEGER;
   digit: CARDINAL;
   r, pos: CARDINAL;
+  cmdLen, inLen, outLen: CARDINAL;
 BEGIN
   ok := FALSE;
 
@@ -70,13 +72,25 @@ BEGIN
   END;
   rateStr[pos] := 0C;
 
+  (* Check total length before building command *)
+  inLen := Length(inPath);
+  outLen := Length(outPath);
+  (* Base parts: prefix(46) + 2 quotes + inPath + " -ac 1 -ar "(11) + rate(max 15) + " -acodec pcm_s16le "(19) + 2 quotes + outPath *)
+  cmdLen := 46 + 2 + inLen + 11 + pos + 19 + 2 + outLen;
+  IF cmdLen > 1023 THEN ok := FALSE; RETURN END;
+
   (* Build command: ffmpeg -y -i "inPath" -ac 1 -ar <rate> -acodec pcm_s16le "outPath" *)
+  quote[0] := 42C; quote[1] := 0C;
   Assign("ffmpeg -y -hide_banner -loglevel error -i ", cmd);
+  Concat(cmd, quote, cmd);
   Concat(cmd, inPath, cmd);
+  Concat(cmd, quote, cmd);
   Concat(cmd, " -ac 1 -ar ", cmd);
   Concat(cmd, rateStr, cmd);
   Concat(cmd, " -acodec pcm_s16le ", cmd);
+  Concat(cmd, quote, cmd);
   Concat(cmd, outPath, cmd);
+  Concat(cmd, quote, cmd);
 
   result := m2sys_exec(ADR(cmd));
   ok := result = 0

@@ -4,7 +4,6 @@ IMPLEMENTATION MODULE KeyDetect;
    (12 major + 12 minor) and picks the best match. *)
 
 FROM SYSTEM IMPORT ADDRESS, TSIZE;
-FROM Storage IMPORT ALLOCATE, DEALLOCATE;
 FROM MathLib IMPORT sqrt;
 FROM Strings IMPORT Assign;
 FROM Spectro IMPORT ComputeChromagram, FreeSpectro;
@@ -14,7 +13,7 @@ TYPE
 
 PROCEDURE Elem(base: ADDRESS; i: CARDINAL): RealPtr;
 BEGIN
-  RETURN RealPtr(LONGCARD(base) + LONGCARD(i * TSIZE(LONGREAL)))
+  RETURN RealPtr(LONGCARD(base) + LONGCARD(i) * LONGCARD(TSIZE(LONGREAL)))
 END Elem;
 
 (* Krumhansl-Kessler major and minor profiles *)
@@ -82,7 +81,10 @@ BEGIN
   (* Compute chromagram *)
   ComputeChromagram(signal, numSamples, sampleRate, 0.050, 0.025,
                      chroma, numFrames);
-  IF numFrames = 0 THEN RETURN END;
+  IF numFrames = 0 THEN
+    IF chroma # NIL THEN FreeSpectro(chroma, 0) END;
+    RETURN
+  END;
 
   (* Average chroma across all frames *)
   FOR c := 0 TO 11 DO avgChroma[c] := 0.0 END;
@@ -98,7 +100,7 @@ BEGIN
     avgChroma[c] := avgChroma[c] / LFLOAT(numFrames)
   END;
 
-  FreeSpectro(chroma);
+  FreeSpectro(chroma, numFrames * 12);
 
   (* Key names: chroma order is A, A#, B, C, C#, D, D#, E, F, F#, G, G# *)
   Assign("A major", names[0]);
