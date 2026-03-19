@@ -1,12 +1,6 @@
 # sndys
 
-An experiment in AI-assisted coding: can Claude write a full audio analysis toolkit in Modula-2 — a language from 1978 — that actually compiles, runs, and produces correct results?
-
-Turns out, yes.
-
-And then: can the same Modula-2 libraries be wrapped in a native macOS SwiftUI app with a C bridge, full async analysis, live waveform playback, spectrogram rendering, and modern HIG compliance?
-
-Also yes.
+An audio analysis toolkit written in PIM4 Modula-2, compiled to native code via the [mx](https://github.com/fitzee/mx) transpiler (Modula-2 → C → native binary). Includes 12 libraries, a 44-command CLI, and a native macOS SwiftUI app — all sharing the same analysis backend.
 
 <p align="center">
   <img src="images/sshot1.png" width="24%" />
@@ -15,27 +9,18 @@ Also yes.
   <img src="images/sshot4.png" width="24%" />
 </p>
 
-## The Experiment
+## Overview
 
-The goal was to port [pyAudioAnalysis](https://github.com/tyiannak/pyAudioAnalysis) — a Python library for audio feature extraction, classification, and segmentation — to PIM4 Modula-2, compiled with the [mx](https://github.com/fitzee/mx) transpiler (Modula-2 → C → native binary).
-
-No Python. No numpy. No scikit-learn. Just Modula-2 procedures, pointer arithmetic, and `LONGREAL`.
-
-The result is **12 pure Modula-2 libraries**, a **44-command CLI tool**, and a **native macOS SwiftUI app** — all sharing the same analysis backend.
+A port of [pyAudioAnalysis](https://github.com/tyiannak/pyAudioAnalysis) — audio feature extraction, classification, and segmentation — to PIM4 Modula-2. No Python runtime, no numpy, no scikit-learn. All computation is in Modula-2 compiled to C.
 
 ## Why Modula-2?
 
-Because it's the hardest way to prove the point. If an AI coding agent can produce sound, modular, correct DSP code in a language with no ecosystem, no Stack Overflow answers, and no training data — and have it match the output of a mature Python library frame-by-frame — then the approach works for anything.
+- **Clean module interfaces.** `.def` / `.mod` separation maps well to library boundaries.
+- **Explicit memory management.** No hidden allocations, deterministic ownership.
+- **C-compatible output.** `mx` produces standard `.o` files and `.a` static libraries with exported C symbols. Links into any C-compatible toolchain (CLI, Swift app, test harness) without reimplementation.
+- **Single codebase, multiple front-ends.** The same object files power the CLI and the macOS app.
 
-But here's the part that matters: **Modula-2 compiled through mx produces standard C and standard object files.** That means the code doesn't live in a bubble. It links into anything — a CLI tool, a Swift app, a C library, a test harness. The same `.o` files that power the command-line tool are the same `.o` files inside the macOS app. No reimplementation. No "port to Swift." One codebase, multiple front-ends.
-
-This is what separates real engineering from AI slop. Slop generates code that only works in the context it was generated for. This code compiles to a static library, exports clean C symbols, and gets called from Swift through a bridging header — because it was written with real module boundaries, explicit memory ownership, and a compilation model that produces actual linkable artifacts.
-
-Modula-2's `.def` / `.mod` separation turned out to be a surprisingly good fit for audio libraries. Clean interfaces, explicit memory management, no hidden allocations, and — critically — every module compiles to C that any toolchain can consume.
-
-## What's Here
-
-### Libraries
+## Libraries
 
 12 independent mx libraries, each with definition modules, implementations, tests, and docs:
 
@@ -54,7 +39,7 @@ Modula-2's `.def` / `.mod` separation turned out to be a surprisingly good fit f
 | [**m2tree**](m2tree/) | Decision trees, Random Forest, Extra Trees, Gradient Boosting |
 | [**m2svm**](m2svm/) | SVM with linear/RBF kernels (simplified SMO, multi-class OVR) |
 
-### sndys — The CLI
+## CLI
 
 A unified audio analysis toolbox built on all 12 libraries.
 
@@ -77,9 +62,9 @@ BPM:        85.7 (7% confidence)
 Activity:   14 non-silent segments
 ```
 
-### sndysApp — Native macOS GUI
+## macOS App
 
-A SwiftUI desktop application that wraps the Modula-2 analysis libraries through a C bridge. No DSP reimplemented in Swift — every analysis call goes through the same M2 code the CLI uses.
+A SwiftUI desktop application that wraps the Modula-2 analysis libraries through a C bridge. All analysis calls go through the same M2 code the CLI uses.
 
 **[Build and run instructions →](sndysApp/README.md)**
 
@@ -89,7 +74,7 @@ Features:
 - Spectrogram and chromagram heatmaps via CGImage
 - Async analysis on background threads with progress indicators
 - AVAudioPlayer playback with play/pause toggle
-- Native file picker, dark mode, Retina — all automatic via SwiftUI
+- Native file picker, dark mode, Retina support via SwiftUI
 - SF Symbols throughout
 
 Architecture:
@@ -97,21 +82,7 @@ Architecture:
 SwiftUI Views → SndysBridge.swift → sndys_bridge.c → bridge_all.c (mx --emit-c) → M2 libraries
 ```
 
-The bridge is 20 exported C functions wrapping the M2 analysis calls. `mx --emit-c` transpiles all 27 M2 modules into a single C file, the bridge appends wrapper functions in the same translation unit (so they can call the `static` M2 functions), and `clang` compiles everything into `libsndys.a`. Swift links against it via a bridging header. That's it.
-
-## The Point About AI-Generated Code
-
-This project was written entirely by Claude — the Modula-2 libraries, the CLI, the defect audit, the C bridge, the SwiftUI app, all of it. But it's not slop. Here's why:
-
-**It compiles to real artifacts.** The M2 code produces `.o` files and `.a` static libraries with exported C symbols. You can link them into any program on any platform that has a C toolchain. That's not a demo — that's an engineering deliverable.
-
-**It was audited and hardened.** A multi-pass defect remediation found and fixed 100+ issues across 46 source files — pointer arithmetic overflow, CARDINAL underflow, division by zero, DEALLOCATE size mismatches, memory leaks, bounds violations. The same classes of bugs that show up in any hand-written systems code. Every fix is minimal, local, and preserves the original design.
-
-**It integrates with native toolchains.** The same libraries that power the CLI also power a SwiftUI app — not through IPC or subprocess calls, but through direct function linking. `mx --emit-c` → `clang` → `libsndys.a` → `swiftc`. No impedance mismatch. No serialization layer. The Swift app calls `sndys_detect_key()` and it runs the same Krumhansl-Schmuckler correlation, the same chromagram computation, the same FFT, that the CLI does.
-
-**It works at the boundary.** The hard part of AI-assisted coding isn't generating a function — it's generating code that plays well with build systems, linkers, foreign function interfaces, memory ownership conventions, and platform-specific toolchains. This project crosses the M2 → C → static library → Swift bridging header → SwiftUI boundary cleanly, because the code was written with those boundaries in mind.
-
-AI slop is code that works in a demo and breaks when you try to use it for anything real. This is code that compiles to a static library and links into a native app. There's a difference.
+The bridge exposes 20 C functions wrapping the M2 analysis calls. `mx --emit-c` transpiles all 27 M2 modules into a single C file; the bridge appends wrapper functions in the same translation unit (calling the `static` M2 functions directly). `clang` compiles everything into `libsndys.a`. Swift links against it via a bridging header.
 
 ## Build
 
@@ -136,13 +107,13 @@ open ./build/sndysApp
 
 ## Validation
 
-The feature extraction pipeline was validated against pyAudioAnalysis v0.3.14 on real audio files. 21 of 34 features match at r=1.0000 correlation with <0.3% error. The remaining 13 (chroma features) show consistent scale offsets due to a numpy advanced-indexing quirk in the reference implementation.
+Feature extraction validated against pyAudioAnalysis v0.3.14 on real audio files. 21 of 34 features match at r=1.0000 correlation with <0.3% error. The remaining 13 (chroma features) show consistent scale offsets due to a numpy advanced-indexing difference in the reference implementation.
 
-Beat detection was tested against files with known BPM — within 5% of ground truth on all tested tracks.
+Beat detection tested against files with known BPM — within 5% of ground truth on all tested tracks.
 
 ## Release Notes
 
-See **[RELEASE_NOTES.md](RELEASE_NOTES.md)** for the full defect audit breakdown — 100+ fixes across pointer arithmetic, memory management, bounds safety, division guards, and numerical stability.
+See **[RELEASE_NOTES.md](RELEASE_NOTES.md)** for the defect audit breakdown — 100+ fixes across pointer arithmetic, memory management, bounds safety, division guards, and numerical stability.
 
 ## API Documentation
 
